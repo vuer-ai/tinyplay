@@ -11,7 +11,7 @@ interface JsonlEntry {
 }
 
 interface JsonlViewProps {
-  playlistUrl: string;
+  src: string;
   clock: TimelineClock;
   className?: string;
 }
@@ -23,9 +23,9 @@ interface JsonlViewProps {
  * - The active segment changes (useSegment tracks boundaries locally at ~10fps)
  * - The highlighted entry changes (useClockValue at ~4fps)
  */
-export function JsonlView({ playlistUrl, clock, className }: JsonlViewProps) {
+export function JsonlView({ src, clock, className }: JsonlViewProps) {
   const { engine, loading: playlistLoading, error: playlistError } = usePlaylist(
-    { url: playlistUrl },
+    { url: src },
     clock,
   );
 

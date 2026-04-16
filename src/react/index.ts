@@ -7,4 +7,4 @@ export { TimelineController } from './TimelineController';
 export { VideoPlayer } from './players/VideoPlayer';
 export { JsonlView } from './players/JsonlView';
 export { SubtitleView } from './players/SubtitleView';
-export { CanvasTrackView } from './players/CanvasTrackView';
+export { CanvasView } from './players/CanvasView';

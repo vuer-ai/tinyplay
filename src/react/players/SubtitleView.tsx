@@ -11,7 +11,7 @@ interface VttCue {
 }
 
 interface SubtitleViewProps {
-  playlistUrl: string;
+  src: string;
   clock: TimelineClock;
   className?: string;
 }
@@ -20,8 +20,8 @@ interface SubtitleViewProps {
  * View component for WebVTT subtitle tracks.
  * Subscribes to tick at ~10fps to update the displayed cue.
  */
-export function SubtitleView({ playlistUrl, clock, className }: SubtitleViewProps) {
-  const { engine } = usePlaylist({ url: playlistUrl }, clock);
+export function SubtitleView({ src, clock, className }: SubtitleViewProps) {
+  const { engine } = usePlaylist({ url: src }, clock);
   const { data: rawVtt } = useSegment<string>(engine, clock);
 
   // ~10fps for subtitle cue changes

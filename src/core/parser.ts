@@ -2,18 +2,16 @@ import type { ParsedPlaylist, PlaylistSegment } from './types';
 
 /**
  * Parse an m3u8 playlist string into a structured ParsedPlaylist.
- * Supports standard HLS tags and BSS custom extensions (#BSS-*).
+ * Supports standard HLS tags. chunkFormat is auto-detected from segment file extensions.
  */
 export function parsePlaylist(content: string): ParsedPlaylist {
   const lines = content.split('\n');
 
-  let trackType: string | undefined;
   let chunkFormat: string | undefined;
   let targetDuration = 30;
   let mediaSequence = 0;
   let programDateTime: string | undefined;
   let isLive = true;
-  const customTags: Record<string, string> = {};
   const rawSegments: Array<{ duration: number; title: string; uri: string }> = [];
 
   for (let i = 0; i < lines.length; i++) {
@@ -43,22 +41,20 @@ export function parsePlaylist(content: string): ParsedPlaylist {
       }
     } else if (line === '#EXT-X-ENDLIST') {
       isLive = false;
-    } else if (line.startsWith('#BSS-TRACK-TYPE:')) {
-      trackType = line.slice(16);
-    } else if (line.startsWith('#BSS-CHUNK-FORMAT:')) {
-      chunkFormat = line.slice(18);
     } else if (line.startsWith('#EXT-X-TARGETDURATION:')) {
       targetDuration = parseInt(line.slice(22), 10);
     } else if (line.startsWith('#EXT-X-MEDIA-SEQUENCE:')) {
       mediaSequence = parseInt(line.slice(22), 10);
     } else if (line.startsWith('#EXT-X-PROGRAM-DATE-TIME:')) {
       programDateTime = line.slice(25);
-    } else if (line.startsWith('#BSS-')) {
-      // Capture unknown BSS tags
-      const colonIdx = line.indexOf(':');
-      if (colonIdx > 0) {
-        customTags[line.slice(1, colonIdx)] = line.slice(colonIdx + 1);
-      }
+    }
+  }
+
+  // Infer chunkFormat from first segment's file extension
+  if (!chunkFormat && rawSegments.length > 0) {
+    const ext = rawSegments[0].uri.split('.').pop()?.toLowerCase();
+    if (ext && ext !== 'm3u8') {
+      chunkFormat = ext;
     }
   }
 
@@ -78,7 +74,6 @@ export function parsePlaylist(content: string): ParsedPlaylist {
   });
 
   return {
-    trackType,
     chunkFormat,
     targetDuration,
     programDateTime,
@@ -86,6 +81,6 @@ export function parsePlaylist(content: string): ParsedPlaylist {
     segments,
     isLive,
     totalDuration: cumulative,
-    customTags,
+    customTags: {},
   };
 }

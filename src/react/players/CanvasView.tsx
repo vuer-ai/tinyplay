@@ -5,8 +5,8 @@ import { findBracket } from '../../core/find-bracket';
 import type { TimelineClock } from '../../core/timeline';
 import type { TrackSamples } from '../hooks/use-track-reducer';
 
-interface CanvasTrackViewProps {
-  playlistUrl: string;
+interface CanvasViewProps {
+  src: string;
   clock: TimelineClock;
   mode?: 'chart' | 'path' | 'both';
   /** Seconds of data visible in the chart window. Default: 8 */
@@ -23,14 +23,14 @@ const COLORS = ['#60a5fa', '#34d399', '#f472b6', '#fbbf24', '#a78bfa', '#fb923c'
  * NO React re-renders per frame. React only re-renders when
  * new segment data is loaded (merged tracks change).
  */
-export function CanvasTrackView({
-  playlistUrl,
+export function CanvasView({
+  src,
   clock,
   mode = 'both',
   chartWindow = 8,
   className,
-}: CanvasTrackViewProps) {
-  const { engine } = usePlaylist({ url: playlistUrl }, clock);
+}: CanvasViewProps) {
+  const { engine } = usePlaylist({ url: src }, clock);
   const { tracks, loading } = useTrackReducer(engine, clock);
 
   const chartCanvasRef = useRef<HTMLCanvasElement>(null);

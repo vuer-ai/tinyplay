@@ -33,4 +33,4 @@ export { TimelineController } from './react/TimelineController';
 export { VideoPlayer } from './react/players/VideoPlayer';
 export { JsonlView } from './react/players/JsonlView';
 export { SubtitleView } from './react/players/SubtitleView';
-export { CanvasTrackView } from './react/players/CanvasTrackView';
+export { CanvasView } from './react/players/CanvasView';

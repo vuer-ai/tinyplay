@@ -25,10 +25,10 @@ function App() {
   const { clock, state, play, pause, seek, setPlaybackRate, setLoop } = useTimeline();
   return (
     <div>
-      <JsonlView playlistUrl="/annotations.m3u8" clock={clock} />
+      <JsonlView src="/annotations.m3u8" clock={clock} />
       <TimelineController clock={clock} state={state}
         onPlay={play} onPause={pause} onSeek={seek}
-        onPlaybackRateChange={setPlaybackRate} onLoopChange={setLoop} />
+        onSpeedChange={setPlaybackRate} onLoopChange={setLoop} />
     </div>
   );
 }
@@ -105,14 +105,14 @@ const i = pos.times.findIndex(t => t >= clock.time);
 
 ## View Components
 
-All accept `{ playlistUrl: string, clock: TimelineClock }`:
+All accept `{ src: string, clock: TimelineClock }`:
 
 | Component | Data | Use case |
 |-----------|------|----------|
 | `VideoPlayer` | hls.js | Standard HLS video |
 | `JsonlView` | useSegment | JSONL events/annotations |
 | `SubtitleView` | useSegment | WebVTT subtitles |
-| `CanvasTrackView` | useTrackReducer | Chart + 2D trajectory (mode: 'chart'/'path'/'both') |
+| `CanvasView` | useTrackReducer | Chart + 2D trajectory (mode: 'chart'/'path'/'both') |
 | `TimelineController` | useClockValue | Scrubber UI (also needs `state` from useTimeline) |
 
 ## Custom Decoder
@@ -134,8 +134,8 @@ new Playlist({
 Pattern: `usePlaylist` + `useSegment` or `useTrackReducer` + `useClockValue`.
 
 ```tsx
-function SensorView({ playlistUrl, clock }: { playlistUrl: string; clock: TimelineClock }) {
-  const { engine } = usePlaylist({ url: playlistUrl }, clock);
+function SensorView({ src, clock }: { src: string; clock: TimelineClock }) {
+  const { engine } = usePlaylist({ url: src }, clock);
   const { data } = useSegment<{ start: number; value: number }[]>(engine, clock);
   const time = useClockValue(clock, 4);
 
@@ -149,13 +149,10 @@ function SensorView({ playlistUrl, clock }: { playlistUrl: string; clock: Timeli
 
 ## M3U8 Playlist Format
 
-Standard HLS with two custom tags:
+Standard HLS playlists. Chunk format is auto-detected from segment file extensions:
 
 ```m3u8
 #EXTM3U
-#EXT-X-VERSION:3
-#BSS-TRACK-TYPE:metrics
-#BSS-CHUNK-FORMAT:jsonl
 #EXT-X-TARGETDURATION:10
 
 #EXTINF:10.000,segments=50
@@ -165,8 +162,6 @@ chunk-002.jsonl
 #EXT-X-ENDLIST
 ```
 
-- `#BSS-TRACK-TYPE` — track type (metrics, track)
-- `#BSS-CHUNK-FORMAT` — chunk format (jsonl, mpk, parquet, vtt)
 - No `#EXT-X-ENDLIST` → live playlist, engine polls automatically
 
 ## Live Streaming
@@ -191,6 +186,4 @@ const { engine, playlist } = usePlaylist(
 
 ## Documentation
 
-- `docs/DESIGN.md` — API reference
-- `docs/EXAMPLES.md` — 13 usage examples
-- `docs/ARCHITECTURE.md` — data flow, event model, performance
+Full docs at [docs.dreamlake.ai/vuer-m3u](https://docs.dreamlake.ai/vuer-m3u).

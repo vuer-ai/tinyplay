@@ -3,7 +3,7 @@ import Hls from 'hls.js';
 import type { TimelineClock } from '../../core/timeline';
 
 interface VideoPlayerProps {
-  playlistUrl: string;
+  src: string;
   clock: TimelineClock;
   className?: string;
 }
@@ -20,7 +20,7 @@ interface VideoPlayerProps {
  * Duration sync: obtained from <video>.durationchange → clock.extendDuration().
  * Playback sync: clock seek events → video.play/pause/seek/playbackRate.
  */
-export function VideoPlayer({ playlistUrl, clock, className }: VideoPlayerProps) {
+export function VideoPlayer({ src, clock, className }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
 
@@ -41,10 +41,10 @@ export function VideoPlayer({ playlistUrl, clock, className }: VideoPlayerProps)
     if (Hls.isSupported()) {
       const hls = new Hls({ enableWorker: true, lowLatencyMode: false });
       hlsRef.current = hls;
-      hls.loadSource(playlistUrl);
+      hls.loadSource(src);
       hls.attachMedia(video);
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = playlistUrl;
+      video.src = src;
     }
 
     return () => {
@@ -53,7 +53,7 @@ export function VideoPlayer({ playlistUrl, clock, className }: VideoPlayerProps)
       hlsRef.current?.destroy();
       hlsRef.current = null;
     };
-  }, [playlistUrl, clock]);
+  }, [src, clock]);
 
   // Subscribe to clock seek events
   useEffect(() => {

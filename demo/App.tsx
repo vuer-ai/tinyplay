@@ -3,7 +3,7 @@ import { TimelineController } from '../src/react/TimelineController';
 import { VideoPlayer } from '../src/react/players/VideoPlayer';
 import { JsonlView } from '../src/react/players/JsonlView';
 import { SubtitleView } from '../src/react/players/SubtitleView';
-import { CanvasTrackView } from '../src/react/players/CanvasTrackView';
+import { CanvasView } from '../src/react/players/CanvasView';
 
 // Local HLS video (30s clip, served from demo/mock-data/video/)
 const VIDEO_URL = '/video/playlist.m3u8';
@@ -36,7 +36,7 @@ export function App() {
             </div>
             <div className="aspect-video bg-black">
               <VideoPlayer
-                playlistUrl={VIDEO_URL}
+                src={VIDEO_URL}
                 clock={clock}
                 className="w-full h-full"
               />
@@ -45,7 +45,7 @@ export function App() {
 
           <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden h-[360px]">
             <JsonlView
-              playlistUrl={ANNOTATIONS_URL}
+              src={ANNOTATIONS_URL}
               clock={clock}
             />
           </div>
@@ -53,8 +53,8 @@ export function App() {
 
         {/* Row 2: Canvas Track Player (chart + path) */}
         <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden h-[300px]">
-          <CanvasTrackView
-            playlistUrl={TRAJECTORY_URL}
+          <CanvasView
+            src={TRAJECTORY_URL}
             clock={clock}
             mode="both"
             chartWindow={8}
@@ -67,7 +67,7 @@ export function App() {
             Subtitle Track (VTT)
           </div>
           <SubtitleView
-            playlistUrl={SUBTITLES_URL}
+            src={SUBTITLES_URL}
             clock={clock}
             className="h-16"
           />
@@ -81,7 +81,7 @@ export function App() {
             onPlay={play}
             onPause={pause}
             onSeek={seek}
-            onPlaybackRateChange={setPlaybackRate}
+            onSpeedChange={setPlaybackRate}
             onLoopChange={setLoop}
           />
         </div>

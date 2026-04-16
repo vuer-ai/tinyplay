@@ -9,7 +9,7 @@ interface TimelineControllerProps {
   onPlay: () => void;
   onPause: () => void;
   onSeek: (time: number) => void;
-  onPlaybackRateChange: (rate: number) => void;
+  onSpeedChange: (rate: number) => void;
   onLoopChange?: (loop: boolean) => void;
   markers?: Array<{ start: number; end: number; color?: string; label?: string }>;
   className?: string;
@@ -23,7 +23,7 @@ export function TimelineController({
   onPlay,
   onPause,
   onSeek,
-  onPlaybackRateChange,
+  onSpeedChange,
   onLoopChange,
   markers,
   className,
@@ -165,7 +165,7 @@ export function TimelineController({
           {PLAYBACK_RATES.map((rate) => (
             <button
               key={rate}
-              onClick={() => onPlaybackRateChange(rate)}
+              onClick={() => onSpeedChange(rate)}
               className={`px-1.5 py-0.5 rounded text-xs transition-colors ${
                 state.playbackRate === rate
                   ? 'bg-white text-zinc-900 font-medium'

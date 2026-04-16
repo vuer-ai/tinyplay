@@ -37,11 +37,10 @@ src/react/          React integration layer
     VideoPlayer     hls.js (does NOT use Playlist — hls.js handles its own m3u8)
     JsonlView       JSONL event list viewer
     SubtitleView    VTT cue display
-    CanvasTrackView Canvas chart + 2D path animation
+    CanvasView      Canvas chart + 2D path animation
   TimelineController  scrubber + play/pause + rate + loop
 
 demo/               Demo app with mock data (served via Vite publicDir)
-docs/               DESIGN.md, EXAMPLES.md, ARCHITECTURE.md
 tests/              vitest tests
 ```
 
@@ -83,3 +82,7 @@ Tests use vitest with `environment: 'node'`. Core logic (parser, resolver, find-
 pnpm test         # run once
 pnpm test:watch   # watch mode
 ```
+
+## Documentation
+
+All documentation lives in the **doc-site-dreamlake** repo (`pages/vuer-m3u/`), not in this repo. When modifying any code in this package, always update the corresponding documentation in doc-site-dreamlake.
