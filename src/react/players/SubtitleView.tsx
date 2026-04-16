@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { usePlaylistEngine } from '../hooks/use-playlist-engine';
+import { usePlaylist } from '../hooks/use-playlist';
 import { useSegment } from '../hooks/use-segment';
 import { useClockValue } from '../hooks/use-clock-value';
 import type { TimelineClock } from '../../core/timeline';
@@ -10,18 +10,18 @@ interface VttCue {
   text: string;
 }
 
-interface SubtitlePlayerProps {
+interface SubtitleViewProps {
   playlistUrl: string;
   clock: TimelineClock;
   className?: string;
 }
 
 /**
- * Player component for WebVTT subtitle tracks.
+ * View component for WebVTT subtitle tracks.
  * Subscribes to tick at ~10fps to update the displayed cue.
  */
-export function SubtitlePlayer({ playlistUrl, clock, className }: SubtitlePlayerProps) {
-  const { engine } = usePlaylistEngine({ url: playlistUrl }, clock);
+export function SubtitleView({ playlistUrl, clock, className }: SubtitleViewProps) {
+  const { engine } = usePlaylist({ url: playlistUrl }, clock);
   const { data: rawVtt } = useSegment<string>(engine, clock);
 
   // ~10fps for subtitle cue changes

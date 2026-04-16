@@ -1,11 +1,11 @@
 import { useEffect, useRef } from 'react';
-import { usePlaylistEngine } from '../hooks/use-playlist-engine';
-import { useTrackData } from '../hooks/use-track-data';
+import { usePlaylist } from '../hooks/use-playlist';
+import { useTrackReducer } from '../hooks/use-track-reducer';
 import { findBracket } from '../../core/find-bracket';
 import type { TimelineClock } from '../../core/timeline';
-import type { TrackSamples } from '../hooks/use-track-data';
+import type { TrackSamples } from '../hooks/use-track-reducer';
 
-interface CanvasTrackPlayerProps {
+interface CanvasTrackViewProps {
   playlistUrl: string;
   clock: TimelineClock;
   mode?: 'chart' | 'path' | 'both';
@@ -17,21 +17,21 @@ interface CanvasTrackPlayerProps {
 const COLORS = ['#60a5fa', '#34d399', '#f472b6', '#fbbf24', '#a78bfa', '#fb923c'];
 
 /**
- * Canvas-based player for continuous animation/time-series data.
+ * Canvas-based view for continuous animation/time-series data.
  *
  * Draws imperatively on Canvas at 60fps via clock tick events —
  * NO React re-renders per frame. React only re-renders when
  * new segment data is loaded (merged tracks change).
  */
-export function CanvasTrackPlayer({
+export function CanvasTrackView({
   playlistUrl,
   clock,
   mode = 'both',
   chartWindow = 8,
   className,
-}: CanvasTrackPlayerProps) {
-  const { engine } = usePlaylistEngine({ url: playlistUrl }, clock);
-  const { tracks, loading } = useTrackData(engine, clock);
+}: CanvasTrackViewProps) {
+  const { engine } = usePlaylist({ url: playlistUrl }, clock);
+  const { tracks, loading } = useTrackReducer(engine, clock);
 
   const chartCanvasRef = useRef<HTMLCanvasElement>(null);
   const pathCanvasRef = useRef<HTMLCanvasElement>(null);

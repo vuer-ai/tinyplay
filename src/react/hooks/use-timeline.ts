@@ -11,7 +11,7 @@ import type { TimelineState } from '../../core/types';
  *             Only re-renders when these values change (on seek events),
  *             NOT on every frame. For currentTime, use `useClockValue(clock, fps)`.
  *
- * Duration is auto-detected from playlists via `usePlaylistEngine(options, clock)`.
+ * Duration is auto-detected from playlists via `usePlaylist(options, clock)`.
  */
 export function useTimeline(duration = 0) {
   const clockRef = useRef<TimelineClock | null>(null);

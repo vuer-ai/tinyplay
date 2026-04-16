@@ -50,7 +50,7 @@ export type SegmentDecoder<T = unknown> = (
 
 // ---- Engine options ----
 
-export interface PlaylistEngineOptions {
+export interface PlaylistOptions {
   /** Playlist URL */
   url: string;
   /** Base URL for resolving relative segment URIs. Defaults to playlist URL's directory. */

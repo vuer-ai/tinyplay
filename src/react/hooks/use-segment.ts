@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { PlaylistEngine } from '../../core/playlist-engine';
+import type { Playlist } from '../../core/playlist';
 import type { PlaylistSegment, SegmentState } from '../../core/types';
 import type { TimelineClock } from '../../core/timeline';
 import { resolveSegment } from '../../core/segment-resolver';
@@ -16,7 +16,7 @@ import { useClockValue } from './use-clock-value';
  * boundary checking during playback.
  */
 export function useSegment<T = unknown>(
-  engine: PlaylistEngine | null,
+  engine: Playlist | null,
   clock: TimelineClock,
 ): SegmentState<T> {
   const [state, setState] = useState<SegmentState<T>>({

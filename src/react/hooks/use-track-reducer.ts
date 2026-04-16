@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { PlaylistEngine } from '../../core/playlist-engine';
+import type { Playlist } from '../../core/playlist';
 import type { TimelineClock } from '../../core/timeline';
 import { resolveSegment } from '../../core/segment-resolver';
 import { useClockValue } from './use-clock-value';
@@ -15,7 +15,7 @@ export interface TrackSamples {
   stride: number;
 }
 
-export interface TrackDataState {
+export interface TrackReducerState {
   /** Interpolatable data per track name */
   tracks: Map<string, TrackSamples>;
   /** Set of loaded segment indices */
@@ -37,7 +37,7 @@ interface RawSegmentData {
  * Load continuous, interpolatable track data from an m3u8 playlist.
  *
  * Returns contiguous `Float32Array` data suitable for `findBracket` + lerp.
- * Tracks segment boundaries locally (per-hook) — multiple useTrackData hooks
+ * Tracks segment boundaries locally (per-hook) — multiple useTrackReducer hooks
  * with different playlists on the same clock work correctly.
  *
  * **Gap safety**: Only merges the longest contiguous chain of loaded segments
@@ -47,15 +47,15 @@ interface RawSegmentData {
  * - `{ t: number, position: number[], ... }[]` — auto-extracted per field
  * - `{ [trackName]: { times: number[], values: number[], stride: number } }` — direct
  */
-export function useTrackData(
-  engine: PlaylistEngine | null,
+export function useTrackReducer(
+  engine: Playlist | null,
   clock: TimelineClock,
-): TrackDataState {
+): TrackReducerState {
   const rawSegmentsRef = useRef(new Map<number, RawSegmentData>());
   const currentSegmentIndexRef = useRef(-1);
   const lastLoadedIndexRef = useRef(-1);
 
-  const [state, setState] = useState<TrackDataState>({
+  const [state, setState] = useState<TrackReducerState>({
     tracks: new Map(),
     loadedSegments: new Set(),
     mergedRange: null,

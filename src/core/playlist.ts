@@ -1,6 +1,6 @@
 import type {
   ParsedPlaylist,
-  PlaylistEngineOptions,
+  PlaylistOptions,
   SegmentData,
   SegmentDecoder,
 } from './types';
@@ -10,15 +10,15 @@ import { SegmentLoader } from './segment-loader';
 import { getDecoder } from './decoders';
 
 /**
- * PlaylistEngine orchestrates playlist parsing, segment resolution,
+ * Playlist orchestrates playlist parsing, segment resolution,
  * data loading/caching, prefetching, and live polling.
  *
  * - Prefetch: automatic in getDataAtTime(). No configuration needed.
  * - Live polling: fixed-interval timer (standard HLS). No clock needed.
  * - Duration: exposed via playlist.totalDuration. The React hook syncs it to the clock.
  */
-export class PlaylistEngine extends EventTarget {
-  readonly options: PlaylistEngineOptions;
+export class Playlist extends EventTarget {
+  readonly options: PlaylistOptions;
   private playlist: ParsedPlaylist | null = null;
   private loader: SegmentLoader;
   private lastSegmentUri: string | null = null;
@@ -29,7 +29,7 @@ export class PlaylistEngine extends EventTarget {
   private pollTimer: ReturnType<typeof setTimeout> | null = null;
   private polling = false;
 
-  constructor(options: PlaylistEngineOptions) {
+  constructor(options: PlaylistOptions) {
     super();
     this.options = options;
     this.fetchFn = options.fetchFn ?? fetch.bind(globalThis);

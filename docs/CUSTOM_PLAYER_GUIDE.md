@@ -1,23 +1,23 @@
-# Building Custom Players
+# Building Custom Views
 
-The built-in player components (`JsonlPlayer`, `SubtitlePlayer`, `CanvasTrackPlayer`) are intentionally minimal — they exist as reference implementations and demos. For production use, you'll build your own player that renders data in the way your application needs.
+The built-in view components (`JsonlView`, `SubtitleView`, `CanvasTrackView`) are intentionally minimal — they exist as reference implementations and demos. For production use, you'll build your own view that renders data in the way your application needs.
 
-This guide explains the two patterns for building custom players, when to use each, and walks through complete examples.
+This guide explains the two patterns for building custom views, when to use each, and walks through complete examples.
 
 ---
 
 ## The Two Patterns
 
-Every custom player follows one of two patterns, depending on the data type:
+Every custom view follows one of two patterns, depending on the data type:
 
 | Pattern | Hook | Data type | Example use cases |
 |---------|------|-----------|-------------------|
 | **Discrete** | `useSegment` | Each entry has its own time range | Event logs, annotations, subtitles, chat messages, state snapshots |
-| **Continuous** | `useTrackData` | Keyframed samples that need interpolation | Position/rotation tracks, sensor readings, loss curves, joint angles |
+| **Continuous** | `useTrackReducer` | Keyframed samples that need interpolation | Position/rotation tracks, sensor readings, loss curves, joint angles |
 
-**How to choose:** If your data entries have their own `start`/`end` fields and you display them as-is, use `useSegment`. If your data is sampled at regular intervals and you need to interpolate between samples, use `useTrackData`.
+**How to choose:** If your data entries have their own `start`/`end` fields and you display them as-is, use `useSegment`. If your data is sampled at regular intervals and you need to interpolate between samples, use `useTrackReducer`.
 
-The one exception is `VideoPlayer`, which uses neither — it delegates to hls.js because video decoding requires a completely different pipeline (demux → remux → MediaSource Extensions → hardware GPU decoder). You cannot build a video player with `useSegment` or `useTrackData`.
+The one exception is `VideoPlayer`, which uses neither — it delegates to hls.js because video decoding requires a completely different pipeline (demux → remux → MediaSource Extensions → hardware GPU decoder). You cannot build a video player with `useSegment` or `useTrackReducer`.
 
 ---
 
@@ -26,7 +26,7 @@ The one exception is `VideoPlayer`, which uses neither — it delegates to hls.j
 ### The 3-step recipe
 
 ```
-1. usePlaylistEngine(options, clock)  → creates engine, syncs duration
+1. usePlaylist(options, clock)  → creates engine, syncs duration
 2. useSegment(engine, clock)          → loads one decoded segment at a time
 3. useClockValue(clock, fps)          → time for highlighting the active entry
 ```
@@ -34,17 +34,17 @@ The one exception is `VideoPlayer`, which uses neither — it delegates to hls.j
 ### Minimal example
 
 ```tsx
-import { usePlaylistEngine, useSegment, useClockValue } from '@vuer-ai/tinyplay';
-import type { TimelineClock } from '@vuer-ai/tinyplay';
+import { usePlaylist, useSegment, useClockValue } from '@vuer-ai/vuer-m3u';
+import type { TimelineClock } from '@vuer-ai/vuer-m3u';
 
-interface MyPlayerProps {
+interface MyViewProps {
   playlistUrl: string;
   clock: TimelineClock;
 }
 
-function MyPlayer({ playlistUrl, clock }: MyPlayerProps) {
+function MyView({ playlistUrl, clock }: MyViewProps) {
   // Step 1: load and parse the m3u8 playlist
-  const { engine } = usePlaylistEngine({ url: playlistUrl }, clock);
+  const { engine } = usePlaylist({ url: playlistUrl }, clock);
 
   // Step 2: get the decoded segment data for the current time
   const { data, loading, error } = useSegment<MyEntry[]>(engine, clock);
@@ -85,9 +85,9 @@ t=10s  → useSegment detects segment boundary (index 0→1)
            → new data array returned, React re-renders
 ```
 
-### Concrete example: Chat Message Player
+### Concrete example: Chat Message View
 
-A player that shows timestamped chat messages, highlighting the current one.
+A view that shows timestamped chat messages, highlighting the current one.
 
 **m3u8 playlist:**
 ```m3u8
@@ -109,10 +109,10 @@ chat-002.jsonl
 {"start":8.1,"end":12.0,"user":"Alice","text":"Gripper looks good, proceeding"}
 ```
 
-**Player component:**
+**View component:**
 ```tsx
-import { usePlaylistEngine, useSegment, useClockValue } from '@vuer-ai/tinyplay';
-import type { TimelineClock } from '@vuer-ai/tinyplay';
+import { usePlaylist, useSegment, useClockValue } from '@vuer-ai/vuer-m3u';
+import type { TimelineClock } from '@vuer-ai/vuer-m3u';
 
 interface ChatMessage {
   start: number;
@@ -121,8 +121,8 @@ interface ChatMessage {
   text: string;
 }
 
-export function ChatPlayer({ playlistUrl, clock }: { playlistUrl: string; clock: TimelineClock }) {
-  const { engine } = usePlaylistEngine({ url: playlistUrl }, clock);
+export function ChatView({ playlistUrl, clock }: { playlistUrl: string; clock: TimelineClock }) {
+  const { engine } = usePlaylist({ url: playlistUrl }, clock);
   const { data } = useSegment<ChatMessage[]>(engine, clock);
   const time = useClockValue(clock, 4);
 
@@ -149,9 +149,9 @@ export function ChatPlayer({ playlistUrl, clock }: { playlistUrl: string; clock:
 }
 ```
 
-### Concrete example: State Snapshot Player
+### Concrete example: State Snapshot View
 
-A player that shows the full state of a system at the current time — only one entry visible at once.
+A view that shows the full state of a system at the current time — only one entry visible at once.
 
 ```tsx
 interface RobotState {
@@ -162,8 +162,8 @@ interface RobotState {
   gripper_open: boolean;
 }
 
-export function StatePlayer({ playlistUrl, clock }: { playlistUrl: string; clock: TimelineClock }) {
-  const { engine } = usePlaylistEngine({ url: playlistUrl }, clock);
+export function StateView({ playlistUrl, clock }: { playlistUrl: string; clock: TimelineClock }) {
+  const { engine } = usePlaylist({ url: playlistUrl }, clock);
   const { data } = useSegment<RobotState[]>(engine, clock);
   const time = useClockValue(clock, 10);
 
@@ -194,20 +194,20 @@ export function StatePlayer({ playlistUrl, clock }: { playlistUrl: string; clock
 
 ---
 
-## Pattern 2: Continuous Data (`useTrackData`)
+## Pattern 2: Continuous Data (`useTrackReducer`)
 
 ### The 3-step recipe
 
 ```
-1. usePlaylistEngine(options, clock)  → creates engine, syncs duration
-2. useTrackData(engine, clock)        → merged Float32Arrays from contiguous segments
+1. usePlaylist(options, clock)  → creates engine, syncs duration
+2. useTrackReducer(engine, clock)     → merged Float32Arrays from contiguous segments
 3. findBracket + interpolation        → query the merged data at any time
 ```
 
-### What `useTrackData` returns
+### What `useTrackReducer` returns
 
 ```typescript
-const { tracks, mergedRange, loading } = useTrackData(engine, clock);
+const { tracks, mergedRange, loading } = useTrackReducer(engine, clock);
 
 // tracks: Map<string, TrackSamples>
 // Each TrackSamples: { times: Float32Array, values: Float32Array, stride: number }
@@ -225,10 +225,10 @@ const { tracks, mergedRange, loading } = useTrackData(engine, clock);
 
 ### How to query the merged data
 
-`useTrackData` only loads and merges. Querying is up to you:
+`useTrackReducer` only loads and merges. Querying is up to you:
 
 ```typescript
-import { findBracket } from '@vuer-ai/tinyplay';
+import { findBracket } from '@vuer-ai/vuer-m3u';
 
 const track = tracks.get('position');
 const [idx, alpha] = findBracket(track.times, currentTime, hint);
@@ -276,15 +276,15 @@ A numeric dashboard showing interpolated sensor values.
 {"t":0.1,"temperature":22.6,"pressure":1013.1,"humidity":45.1}
 ```
 
-**Player:**
+**View component:**
 ```tsx
 import { useRef } from 'react';
-import { usePlaylistEngine, useTrackData, useClockValue, findBracket } from '@vuer-ai/tinyplay';
-import type { TimelineClock } from '@vuer-ai/tinyplay';
+import { usePlaylist, useTrackReducer, useClockValue, findBracket } from '@vuer-ai/vuer-m3u';
+import type { TimelineClock } from '@vuer-ai/vuer-m3u';
 
-export function GaugePlayer({ playlistUrl, clock }: { playlistUrl: string; clock: TimelineClock }) {
-  const { engine } = usePlaylistEngine({ url: playlistUrl }, clock);
-  const { tracks } = useTrackData(engine, clock);
+export function GaugeView({ playlistUrl, clock }: { playlistUrl: string; clock: TimelineClock }) {
+  const { engine } = usePlaylist({ url: playlistUrl }, clock);
+  const { tracks } = useTrackReducer(engine, clock);
   const time = useClockValue(clock, 15);
   const hintRef = useRef(0);
 
@@ -328,12 +328,12 @@ A smooth scrolling waveform drawn imperatively on canvas.
 
 ```tsx
 import { useEffect, useRef } from 'react';
-import { usePlaylistEngine, useTrackData, findBracket } from '@vuer-ai/tinyplay';
-import type { TimelineClock } from '@vuer-ai/tinyplay';
+import { usePlaylist, useTrackReducer, findBracket } from '@vuer-ai/vuer-m3u';
+import type { TimelineClock } from '@vuer-ai/vuer-m3u';
 
-export function WaveformPlayer({ playlistUrl, clock }: { playlistUrl: string; clock: TimelineClock }) {
-  const { engine } = usePlaylistEngine({ url: playlistUrl }, clock);
-  const { tracks } = useTrackData(engine, clock);
+export function WaveformView({ playlistUrl, clock }: { playlistUrl: string; clock: TimelineClock }) {
+  const { engine } = usePlaylist({ url: playlistUrl }, clock);
+  const { tracks } = useTrackReducer(engine, clock);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hintRef = useRef(0);
 
@@ -392,7 +392,7 @@ export function WaveformPlayer({ playlistUrl, clock }: { playlistUrl: string; cl
 
 ## The Decoder Contract
 
-Both `useSegment` and `useTrackData` rely on the decoder to transform raw bytes into usable data.
+Both `useSegment` and `useTrackReducer` rely on the decoder to transform raw bytes into usable data.
 
 ### For `useSegment`
 
@@ -404,7 +404,7 @@ The decoder can return **anything**. `useSegment<T>` passes the decoded value th
 // Decoder returns custom object → useSegment<MyObject> gets MyObject
 ```
 
-### For `useTrackData`
+### For `useTrackReducer`
 
 The decoder must return one of two shapes:
 
@@ -442,7 +442,7 @@ The built-in `jsonl` decoder outputs Shape 1 (array of JSON objects). If your da
 | Scrubber bar position | 30 | Visual smoothness for a moving element |
 | Canvas animation | 60 | Use `clock.on('tick')` directly, not `useClockValue` |
 
-For Canvas players, don't use `useClockValue` at all — subscribe to `clock.on('tick')` imperatively. This bypasses React entirely and gives you 60fps with zero re-render cost.
+For Canvas views, don't use `useClockValue` at all — subscribe to `clock.on('tick')` imperatively. This bypasses React entirely and gives you 60fps with zero re-render cost.
 
 ---
 
@@ -451,7 +451,7 @@ For Canvas players, don't use `useClockValue` at all — subscribe to `clock.on(
 ```
 Your data has start/end per entry?
   YES → useSegment → render in React at useClockValue(clock, N)
-  NO  → useTrackData → findBracket + interpolate
+  NO  → useTrackReducer → findBracket + interpolate
             → React display: useClockValue(clock, N)
             → Canvas animation: clock.on('tick') imperative
 

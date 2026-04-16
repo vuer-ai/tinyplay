@@ -1,9 +1,9 @@
 import { useTimeline } from '../src/react/hooks/use-timeline';
 import { TimelineController } from '../src/react/TimelineController';
 import { VideoPlayer } from '../src/react/players/VideoPlayer';
-import { JsonlPlayer } from '../src/react/players/JsonlPlayer';
-import { SubtitlePlayer } from '../src/react/players/SubtitlePlayer';
-import { CanvasTrackPlayer } from '../src/react/players/CanvasTrackPlayer';
+import { JsonlView } from '../src/react/players/JsonlView';
+import { SubtitleView } from '../src/react/players/SubtitleView';
+import { CanvasTrackView } from '../src/react/players/CanvasTrackView';
 
 // Local HLS video (30s clip, served from demo/mock-data/video/)
 const VIDEO_URL = '/video/playlist.m3u8';
@@ -44,7 +44,7 @@ export function App() {
           </div>
 
           <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden h-[360px]">
-            <JsonlPlayer
+            <JsonlView
               playlistUrl={ANNOTATIONS_URL}
               clock={clock}
             />
@@ -53,7 +53,7 @@ export function App() {
 
         {/* Row 2: Canvas Track Player (chart + path) */}
         <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden h-[300px]">
-          <CanvasTrackPlayer
+          <CanvasTrackView
             playlistUrl={TRAJECTORY_URL}
             clock={clock}
             mode="both"
@@ -66,7 +66,7 @@ export function App() {
           <div className="text-xs font-medium text-zinc-400 uppercase tracking-wide mb-3">
             Subtitle Track (VTT)
           </div>
-          <SubtitlePlayer
+          <SubtitleView
             playlistUrl={SUBTITLES_URL}
             clock={clock}
             className="h-16"

@@ -3,13 +3,13 @@
 ## 1. Minimal
 
 ```tsx
-import { useTimeline, useClockValue, TimelineController, JsonlPlayer } from '@vuer-ai/tinyplay';
+import { useTimeline, useClockValue, TimelineController, JsonlView } from '@vuer-ai/vuer-m3u';
 
 function App() {
   const { clock, state, play, pause, seek, setPlaybackRate } = useTimeline();
   return (
     <div>
-      <JsonlPlayer playlistUrl="/annotations.m3u8" clock={clock} />
+      <JsonlView playlistUrl="/annotations.m3u8" clock={clock} />
       <TimelineController clock={clock} state={state}
         onPlay={play} onPause={pause} onSeek={seek} onPlaybackRateChange={setPlaybackRate} />
     </div>
@@ -26,17 +26,17 @@ Duration auto-detected from the playlist.
 ```tsx
 import {
   useTimeline, TimelineController,
-  VideoPlayer, JsonlPlayer, SubtitlePlayer, CanvasTrackPlayer,
-} from '@vuer-ai/tinyplay';
+  VideoPlayer, JsonlView, SubtitleView, CanvasTrackView,
+} from '@vuer-ai/vuer-m3u';
 
 function App() {
   const { clock, state, play, pause, seek, setPlaybackRate, setLoop } = useTimeline();
   return (
     <div>
       <VideoPlayer playlistUrl="https://example.com/video.m3u8" clock={clock} />
-      <JsonlPlayer playlistUrl="/annotations.m3u8" clock={clock} />
-      <CanvasTrackPlayer playlistUrl="/trajectory.m3u8" clock={clock} mode="both" />
-      <SubtitlePlayer playlistUrl="/subtitles.m3u8" clock={clock} />
+      <JsonlView playlistUrl="/annotations.m3u8" clock={clock} />
+      <CanvasTrackView playlistUrl="/trajectory.m3u8" clock={clock} mode="both" />
+      <SubtitleView playlistUrl="/subtitles.m3u8" clock={clock} />
       <TimelineController clock={clock} state={state}
         onPlay={play} onPause={pause} onSeek={seek}
         onPlaybackRateChange={setPlaybackRate} onLoopChange={setLoop} />
@@ -45,7 +45,7 @@ function App() {
 }
 ```
 
-Multiple playlists with different durations → clock auto-extends to max.
+Multiple views with different durations → clock auto-extends to max.
 
 ---
 
@@ -54,7 +54,7 @@ Multiple playlists with different durations → clock auto-extends to max.
 `useTimeline` state does NOT include `currentTime`. Use `useClockValue` at the fps you need:
 
 ```tsx
-import { useTimeline, useClockValue } from '@vuer-ai/tinyplay';
+import { useTimeline, useClockValue } from '@vuer-ai/vuer-m3u';
 
 function MyComponent() {
   const { clock } = useTimeline();
@@ -75,9 +75,9 @@ clock.on('tick', (e) => {
 ## 4. Core API Without React
 
 ```typescript
-import { PlaylistEngine, TimelineClock } from '@vuer-ai/tinyplay';
+import { Playlist, TimelineClock } from '@vuer-ai/vuer-m3u';
 
-const engine = new PlaylistEngine({ url: '/data.m3u8' });
+const engine = new Playlist({ url: '/data.m3u8' });
 const playlist = await engine.init();
 
 const result = await engine.getDataAtTime(15);
@@ -96,7 +96,7 @@ clock.destroy();
 ## 5. Custom Decoder — Global
 
 ```typescript
-import { registerDecoder } from '@vuer-ai/tinyplay';
+import { registerDecoder } from '@vuer-ai/vuer-m3u';
 import { decode } from '@msgpack/msgpack';
 
 registerDecoder('mpk', (raw) => decode(new Uint8Array(raw)));
@@ -109,7 +109,7 @@ registerDecoder('mpk', (raw) => decode(new Uint8Array(raw)));
 For binary data without a named format:
 
 ```typescript
-const engine = new PlaylistEngine({
+const engine = new Playlist({
   url: '/data.m3u8',
   decoder: (raw) => {
     const view = new DataView(raw);
@@ -123,10 +123,10 @@ const engine = new PlaylistEngine({
 
 ## 7. Prefetch Configuration
 
-Prefetch is automatic in `getDataAtTime()`. Customize via `usePlaylistEngine`:
+Prefetch is automatic in `getDataAtTime()`. Customize via `usePlaylist`:
 
 ```tsx
-const { engine } = usePlaylistEngine(
+const { engine } = usePlaylist(
   { url: '/data.m3u8', prefetchCount: 4, cacheSize: 50 },
   clock,
 );
@@ -140,7 +140,7 @@ const { engine } = usePlaylistEngine(
 function LiveDashboard() {
   const { clock, state, play, pause, seek, setPlaybackRate } = useTimeline();
 
-  const { engine, playlist } = usePlaylistEngine(
+  const { engine, playlist } = usePlaylist(
     { url: '/live/stream.m3u8', pollInterval: 3000 },
     clock,
   );
@@ -160,13 +160,13 @@ function LiveDashboard() {
 
 ---
 
-## 9. Custom Player Component
+## 9. Custom View Component
 
-Pattern: `usePlaylistEngine` + `useSegment` + `useClockValue`.
+Pattern: `usePlaylist` + `useSegment` + `useClockValue`.
 
 ```tsx
-function SensorPlayer({ playlistUrl, clock }: { playlistUrl: string; clock: TimelineClock }) {
-  const { engine } = usePlaylistEngine({ url: playlistUrl }, clock);
+function SensorView({ playlistUrl, clock }: { playlistUrl: string; clock: TimelineClock }) {
+  const { engine } = usePlaylist({ url: playlistUrl }, clock);
   const { data } = useSegment<{ start: number; temperature: number }[]>(engine, clock);
   const time = useClockValue(clock, 4);
 
@@ -180,12 +180,12 @@ function SensorPlayer({ playlistUrl, clock }: { playlistUrl: string; clock: Time
 
 ---
 
-## 10. Canvas Track Player
+## 10. Canvas Track View
 
-60fps canvas animation. Uses `useTrackData` for merged continuous data + `findBracket` for O(1) interpolation.
+60fps canvas animation. Uses `useTrackReducer` for merged continuous data + `findBracket` for O(1) interpolation.
 
 ```tsx
-<CanvasTrackPlayer
+<CanvasTrackView
   playlistUrl="/trajectory.m3u8"
   clock={clock}
   mode="both"       // 'chart' | 'path' | 'both'
@@ -195,16 +195,16 @@ function SensorPlayer({ playlistUrl, clock }: { playlistUrl: string; clock: Time
 
 ---
 
-## 11. useTrackData — Querying Merged Data
+## 11. useTrackReducer — Querying Merged Data
 
-`useTrackData` loads and merges segments into contiguous `Float32Array`s. It does NOT interpolate — that's up to the consumer.
+`useTrackReducer` loads and merges segments into contiguous `Float32Array`s. It does NOT interpolate — that's up to the consumer.
 
 ```tsx
-import { usePlaylistEngine, useTrackData, useClockValue, findBracket } from '@vuer-ai/tinyplay';
+import { usePlaylist, useTrackReducer, useClockValue, findBracket } from '@vuer-ai/vuer-m3u';
 
 function TrackViewer({ playlistUrl, clock }) {
-  const { engine } = usePlaylistEngine({ url: playlistUrl }, clock);
-  const { tracks } = useTrackData(engine, clock);
+  const { engine } = usePlaylist({ url: playlistUrl }, clock);
+  const { tracks } = useTrackReducer(engine, clock);
   const time = useClockValue(clock, 30);
 
   const pos = tracks.get('position');
@@ -231,7 +231,7 @@ function TrackViewer({ playlistUrl, clock }) {
 ## 12. Custom Fetch (Auth Headers)
 
 ```typescript
-const engine = new PlaylistEngine({
+const engine = new Playlist({
   url: 'https://api.example.com/data.m3u8',
   fetchFn: (url, init) => fetch(url, {
     ...init,
@@ -245,7 +245,7 @@ const engine = new PlaylistEngine({
 ## 13. Segment Markers on Timeline
 
 ```tsx
-const { playlist } = usePlaylistEngine({ url: '/data.m3u8' }, clock);
+const { playlist } = usePlaylist({ url: '/data.m3u8' }, clock);
 
 <TimelineController clock={clock} state={state}
   onPlay={play} onPause={pause} onSeek={seek} onPlaybackRateChange={setPlaybackRate}

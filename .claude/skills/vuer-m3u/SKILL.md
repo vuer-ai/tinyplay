@@ -1,17 +1,17 @@
 ---
-name: tinyplay
-description: "Use @vuer-ai/tinyplay to build time-synchronized players for any data format. Covers TimelineClock, PlaylistEngine, React hooks (useTimeline, useSegment, useTrackData, useClockValue), player components, custom decoders, and m3u8 playlist authoring."
+name: vuer-m3u
+description: "Use @vuer-ai/vuer-m3u to build time-synchronized views for any data format. Covers TimelineClock, Playlist, React hooks (useTimeline, useSegment, useTrackReducer, useClockValue), view components, custom decoders, and m3u8 playlist authoring."
 paths: "**/*.ts,**/*.tsx,**/*.m3u8"
 ---
 
-# @vuer-ai/tinyplay — Usage Guide
+# @vuer-ai/vuer-m3u — Usage Guide
 
-You are helping a developer use the `@vuer-ai/tinyplay` library. This library generalizes HLS m3u8 playlists beyond video — any time-segmented data (JSONL, VTT, binary, sensor data) can be loaded, cached, prefetched, and played back through a shared timeline.
+You are helping a developer use the `@vuer-ai/vuer-m3u` library. This library generalizes HLS m3u8 playlists beyond video — any time-segmented data (JSONL, VTT, binary, sensor data) can be loaded, cached, prefetched, and played back through a shared timeline.
 
 ## Install
 
 ```bash
-pnpm add @vuer-ai/tinyplay
+pnpm add @vuer-ai/vuer-m3u
 ```
 
 Peer dependency: React 18+. Core engine works without React.
@@ -19,13 +19,13 @@ Peer dependency: React 18+. Core engine works without React.
 ## Quick Start — React
 
 ```tsx
-import { useTimeline, TimelineController, JsonlPlayer } from '@vuer-ai/tinyplay';
+import { useTimeline, TimelineController, JsonlView } from '@vuer-ai/vuer-m3u';
 
 function App() {
   const { clock, state, play, pause, seek, setPlaybackRate, setLoop } = useTimeline();
   return (
     <div>
-      <JsonlPlayer playlistUrl="/annotations.m3u8" clock={clock} />
+      <JsonlView playlistUrl="/annotations.m3u8" clock={clock} />
       <TimelineController clock={clock} state={state}
         onPlay={play} onPause={pause} onSeek={seek}
         onPlaybackRateChange={setPlaybackRate} onLoopChange={setLoop} />
@@ -35,15 +35,15 @@ function App() {
 ```
 
 - Duration is auto-detected from playlist. No hardcoded value needed.
-- Multiple players on the same clock → `max(allDurations)`.
-- All player components accept a `clock` prop (not `currentTime`).
+- Multiple views on the same clock → `max(allDurations)`.
+- All view components accept a `clock` prop (not `currentTime`).
 
 ## Core API (no React)
 
 ```typescript
-import { PlaylistEngine, TimelineClock } from '@vuer-ai/tinyplay';
+import { Playlist, TimelineClock } from '@vuer-ai/vuer-m3u';
 
-const engine = new PlaylistEngine({ url: '/data.m3u8' });
+const engine = new Playlist({ url: '/data.m3u8' });
 const playlist = await engine.init();
 
 const result = await engine.getDataAtTime(15.3);
@@ -59,7 +59,7 @@ clock.play();
 
 ### useTimeline(duration?)
 Creates a TimelineClock. Returns discrete state that only re-renders on seek events.
-- `clock` — pass to player components
+- `clock` — pass to view components
 - `state` — `{ duration, playing, playbackRate, loop }` (NO currentTime)
 - Control: `play`, `pause`, `seek`, `setPlaybackRate`, `setLoop`
 
@@ -71,10 +71,10 @@ const time = useClockValue(clock, 10);  // segment boundary check
 const time = useClockValue(clock, 4);   // highlight update
 ```
 
-### usePlaylistEngine(options, clock?)
-Creates a PlaylistEngine. Auto-extends `clock.duration` from playlist.
+### usePlaylist(options, clock?)
+Creates a Playlist. Auto-extends `clock.duration` from playlist.
 ```tsx
-const { engine, playlist, loading, error } = usePlaylistEngine({ url }, clock);
+const { engine, playlist, loading, error } = usePlaylist({ url }, clock);
 ```
 
 Options: `url`, `decoder`, `cacheSize` (20), `prefetchCount` (2), `pollInterval`, `fetchFn`.
@@ -85,10 +85,10 @@ One decoded segment at a time. For JSONL events, VTT cues.
 const { data, segment, loading, error } = useSegment<MyType[]>(engine, clock);
 ```
 
-### useTrackData(engine, clock) — continuous data
+### useTrackReducer(engine, clock) — continuous data
 Merged contiguous segments as Float32Arrays. For position, rotation, sensors.
 ```tsx
-const { tracks, mergedRange, loading } = useTrackData(engine, clock);
+const { tracks, mergedRange, loading } = useTrackReducer(engine, clock);
 const pos = tracks.get('position');
 // pos.times: Float32Array, pos.values: Float32Array, pos.stride: number
 ```
@@ -103,39 +103,39 @@ const x = pos.values[idx * stride] + (pos.values[(idx+1) * stride] - pos.values[
 const i = pos.times.findIndex(t => t >= clock.time);
 ```
 
-## Player Components
+## View Components
 
 All accept `{ playlistUrl: string, clock: TimelineClock }`:
 
 | Component | Data | Use case |
 |-----------|------|----------|
 | `VideoPlayer` | hls.js | Standard HLS video |
-| `JsonlPlayer` | useSegment | JSONL events/annotations |
-| `SubtitlePlayer` | useSegment | WebVTT subtitles |
-| `CanvasTrackPlayer` | useTrackData | Chart + 2D trajectory (mode: 'chart'/'path'/'both') |
+| `JsonlView` | useSegment | JSONL events/annotations |
+| `SubtitleView` | useSegment | WebVTT subtitles |
+| `CanvasTrackView` | useTrackReducer | Chart + 2D trajectory (mode: 'chart'/'path'/'both') |
 | `TimelineController` | useClockValue | Scrubber UI (also needs `state` from useTimeline) |
 
 ## Custom Decoder
 
 ```typescript
 // Global — by chunkFormat name in m3u8 header
-import { registerDecoder } from '@vuer-ai/tinyplay';
+import { registerDecoder } from '@vuer-ai/vuer-m3u';
 registerDecoder('mpk', (raw) => decode(new Uint8Array(raw)));
 
 // Per-engine — for unnamed binary formats
-new PlaylistEngine({
+new Playlist({
   url: '/data.m3u8',
   decoder: (raw, segment, playlist) => myCustomDecode(raw),
 });
 ```
 
-## Custom Player Component
+## Custom View Component
 
-Pattern: `usePlaylistEngine` + `useSegment` or `useTrackData` + `useClockValue`.
+Pattern: `usePlaylist` + `useSegment` or `useTrackReducer` + `useClockValue`.
 
 ```tsx
-function SensorPlayer({ playlistUrl, clock }: { playlistUrl: string; clock: TimelineClock }) {
-  const { engine } = usePlaylistEngine({ url: playlistUrl }, clock);
+function SensorView({ playlistUrl, clock }: { playlistUrl: string; clock: TimelineClock }) {
+  const { engine } = usePlaylist({ url: playlistUrl }, clock);
   const { data } = useSegment<{ start: number; value: number }[]>(engine, clock);
   const time = useClockValue(clock, 4);
 
@@ -172,7 +172,7 @@ chunk-002.jsonl
 ## Live Streaming
 
 ```tsx
-const { engine, playlist } = usePlaylistEngine(
+const { engine, playlist } = usePlaylist(
   { url: '/live/stream.m3u8', pollInterval: 3000 },
   clock,
 );
@@ -185,9 +185,9 @@ const { engine, playlist } = usePlaylistEngine(
 1. **TimelineClock** is pure time. No playlist/segment knowledge.
 2. **Segment boundaries** tracked per-hook, not on clock. Multiple playlists work correctly.
 3. **Prefetch** automatic in `getDataAtTime()`. No configuration needed for basic use.
-4. **VideoPlayer** uses hls.js directly (not PlaylistEngine) — different decode pipeline.
+4. **VideoPlayer** uses hls.js directly (not Playlist) — different decode pipeline.
 5. **useTimeline state** has no currentTime. Use `useClockValue(clock, fps)`.
-6. **useSegment** = discrete (events, cues). **useTrackData** = continuous (position, sensors).
+6. **useSegment** = discrete (events, cues). **useTrackReducer** = continuous (position, sensors).
 
 ## Documentation
 

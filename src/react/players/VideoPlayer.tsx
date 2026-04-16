@@ -11,9 +11,9 @@ interface VideoPlayerProps {
 /**
  * HLS video player synced with a TimelineClock.
  *
- * Does NOT use usePlaylistEngine — hls.js is a complete HLS implementation
+ * Does NOT use usePlaylist — hls.js is a complete HLS implementation
  * that handles m3u8 parsing, segment loading, ABR, and video buffering
- * internally via MediaSource Extensions. Using PlaylistEngine alongside it
+ * internally via MediaSource Extensions. Using Playlist alongside it
  * would duplicate the m3u8 fetch, double-load .ts segments as unusable
  * ArrayBuffers, and our decoders cannot decode video media anyway.
  *

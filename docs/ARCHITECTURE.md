@@ -10,23 +10,23 @@ App
 │
 ├── VideoPlayer { clock }
 │     ├── hls.js handles m3u8 parsing + segment loading + video buffering
-│     │   (does NOT use PlaylistEngine — hls.js is a complete HLS implementation;
+│     │   (does NOT use Playlist — hls.js is a complete HLS implementation;
 │     │    using both would duplicate m3u8 fetches and our decoders can't decode video)
 │     ├── <video>.durationchange → clock.extendDuration()
 │     └── clock seek events → video.play/pause/seek/playbackRate
 │
-├── JsonlPlayer { playlistUrl, clock }
-│     ├── usePlaylistEngine(options, clock)  → engine + clock.extendDuration()
+├── JsonlView { playlistUrl, clock }
+│     ├── usePlaylist(options, clock)  → engine + clock.extendDuration()
 │     ├── useSegment(engine, clock)          → useClockValue(10) + resolveSegment()
 │     └── useClockValue(clock, 4)            → highlight active entry
 │
-├── CanvasTrackPlayer { playlistUrl, clock }
-│     ├── usePlaylistEngine(options, clock)
-│     ├── useTrackData(engine, clock)        → merge Float32Arrays
+├── CanvasTrackView { playlistUrl, clock }
+│     ├── usePlaylist(options, clock)
+│     ├── useTrackReducer(engine, clock)     → merge Float32Arrays
 │     └── clock.on('tick') → Canvas 2D draw at 60fps (imperative, no React)
 │
-├── SubtitlePlayer { playlistUrl, clock }
-│     ├── usePlaylistEngine(options, clock)
+├── SubtitleView { playlistUrl, clock }
+│     ├── usePlaylist(options, clock)
 │     ├── useSegment(engine, clock)
 │     └── useClockValue(clock, 10)
 │
@@ -38,11 +38,11 @@ App
 
 ## 2. Data Flow: m3u8 URL → Pixels
 
-### Discrete data (JsonlPlayer)
+### Discrete data (JsonlView)
 
 ```
-1. usePlaylistEngine({ url }, clock)
-     ├─ engine.init() → fetch + parse m3u8 → PlaylistEngine
+1. usePlaylist({ url }, clock)
+     ├─ engine.init() → fetch + parse m3u8 → Playlist
      └─ clock.extendDuration(totalDuration)
 
 2. useSegment(engine, clock)
@@ -58,12 +58,12 @@ App
      └─ data.findIndex(entry => time >= entry.start && time < entry.end)
 ```
 
-### Continuous data (CanvasTrackPlayer)
+### Continuous data (CanvasTrackView)
 
 ```
-1. usePlaylistEngine + clock.extendDuration — same as above
+1. usePlaylist + clock.extendDuration — same as above
 
-2. useTrackData(engine, clock)
+2. useTrackReducer(engine, clock)
      ├─ useClockValue(clock, 10) → segment boundary check at ~10fps
      ├─ On segment change → engine.getDataAtTime(time)
      │    → decoder returns [{t:0.0, position:[x,y,z]}, ...]
@@ -100,9 +100,9 @@ TimelineClock
 useTimeline                                         ✓ (state: playing/rate/loop/duration)
 TimelineController     ✓ via useClockValue(30)      (via useTimeline state)
 VideoPlayer                                         ✓ (play/pause/seek/rate)
-JsonlPlayer            ✓ via useClockValue(10+4)    ✓ (force reload via useSegment)
-SubtitlePlayer         ✓ via useClockValue(10)      ✓ (force reload via useSegment)
-CanvasTrackPlayer      ✓ (60fps canvas draw)        ✓ (redraw)
+JsonlView              ✓ via useClockValue(10+4)    ✓ (force reload via useSegment)
+SubtitleView           ✓ via useClockValue(10)      ✓ (force reload via useSegment)
+CanvasTrackView        ✓ (60fps canvas draw)        ✓ (redraw)
 ```
 
 ---
@@ -143,15 +143,15 @@ Fixed interval timer (standard HLS, RFC 8216).
 engine.init() detects isLive
   └─ schedulePoll(interval = targetDuration * 1000ms)
        └─ pollNow() → fetch playlist → new segments?
-            yes → emit 'playlist-updated' → usePlaylistEngine → clock.extendDuration()
+            yes → emit 'playlist-updated' → usePlaylist → clock.extendDuration()
             #EXT-X-ENDLIST → stop polling
 ```
 
 ---
 
-## 7. useTrackData: Merged Data Queries
+## 7. useTrackReducer: Merged Data Queries
 
-`useTrackData` merges segments and returns `Map<string, TrackSamples>`. The consumer decides the query method:
+`useTrackReducer` merges segments and returns `Map<string, TrackSamples>`. The consumer decides the query method:
 
 ```typescript
 const pos = tracks.get('position');
@@ -187,16 +187,16 @@ findContiguousRange(1) → [0, 1]    (segment 3 excluded — gap at segment 2)
 | useTimeline state | ~0 (seek events only) | — |
 | TimelineController | ~30 | — |
 | VideoPlayer | 0 | — |
-| JsonlPlayer | ~10 | — |
-| SubtitlePlayer | ~10 | — |
-| CanvasTrackPlayer | ~0 | ~60 |
+| JsonlView | ~10 | — |
+| SubtitleView | ~10 | — |
+| CanvasTrackView | ~0 | ~60 |
 
 ### Duration auto-detection
 
 ```
 useTimeline()                          → clock.duration = 0
-usePlaylistEngine(jsonlUrl, clock)     → clock.extendDuration(30)   → duration = 30
-usePlaylistEngine(subtitleUrl, clock)  → clock.extendDuration(25)   → max(30, 25) = 30
+usePlaylist(jsonlUrl, clock)     → clock.extendDuration(30)   → duration = 30
+usePlaylist(subtitleUrl, clock)  → clock.extendDuration(25)   → max(30, 25) = 30
 VideoPlayer (via <video>.durationchange) → clock.extendDuration(1800) → duration = 1800
 live poll discovers new segments       → clock.extendDuration(1810) → duration = 1810
 ```

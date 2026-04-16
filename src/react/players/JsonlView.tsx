@@ -1,4 +1,4 @@
-import { usePlaylistEngine } from '../hooks/use-playlist-engine';
+import { usePlaylist } from '../hooks/use-playlist';
 import { useSegment } from '../hooks/use-segment';
 import { useClockValue } from '../hooks/use-clock-value';
 import type { TimelineClock } from '../../core/timeline';
@@ -10,21 +10,21 @@ interface JsonlEntry {
   [key: string]: unknown;
 }
 
-interface JsonlPlayerProps {
+interface JsonlViewProps {
   playlistUrl: string;
   clock: TimelineClock;
   className?: string;
 }
 
 /**
- * Player component for JSONL m3u8 tracks.
+ * View component for JSONL m3u8 tracks.
  *
  * Re-renders only when:
  * - The active segment changes (useSegment tracks boundaries locally at ~10fps)
  * - The highlighted entry changes (useClockValue at ~4fps)
  */
-export function JsonlPlayer({ playlistUrl, clock, className }: JsonlPlayerProps) {
-  const { engine, loading: playlistLoading, error: playlistError } = usePlaylistEngine(
+export function JsonlView({ playlistUrl, clock, className }: JsonlViewProps) {
+  const { engine, loading: playlistLoading, error: playlistError } = usePlaylist(
     { url: playlistUrl },
     clock,
   );

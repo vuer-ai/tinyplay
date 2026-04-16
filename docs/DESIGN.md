@@ -4,7 +4,7 @@
 
 A pure client-side TypeScript library that generalizes the HLS m3u8 playlist format beyond video. Standard HLS maps time ranges to `.ts` video segments; this library extends that to support **any time-segmented data**: JSONL, WebVTT, MessagePack, Parquet, custom binary, and more.
 
-Each data format gets its own "player" component. All players share a single `TimelineClock` for synchronization.
+Each data format gets its own "view" component. All views share a single `TimelineClock` for synchronization.
 
 ---
 
@@ -19,20 +19,20 @@ src/
 │   ├── parser.ts                   # m3u8 text → ParsedPlaylist
 │   ├── segment-resolver.ts         # time → segment (binary search)
 │   ├── segment-loader.ts           # fetch + LRU cache + dedup
-│   ├── playlist-engine.ts          # orchestrator: parse + load + prefetch + live poll
+│   ├── playlist.ts                 # orchestrator: parse + load + prefetch + live poll
 │   └── decoders/                   # pluggable: jsonl, text, raw (+ registerDecoder)
 ├── react/
 │   ├── hooks/
 │   │   ├── use-timeline.ts         # clock lifecycle + discrete state (playing/rate/loop/duration)
 │   │   ├── use-clock-value.ts      # throttled clock.time at N fps
-│   │   ├── use-playlist-engine.ts  # engine lifecycle + duration sync
+│   │   ├── use-playlist.ts         # playlist lifecycle + duration sync
 │   │   ├── use-segment.ts          # discrete data (one segment at a time)
-│   │   └── use-track-data.ts       # continuous data (merged segments for interpolation)
+│   │   └── use-track-reducer.ts     # continuous data (merged segments for interpolation)
 │   ├── players/
 │   │   ├── VideoPlayer.tsx
-│   │   ├── JsonlPlayer.tsx
-│   │   ├── SubtitlePlayer.tsx
-│   │   └── CanvasTrackPlayer.tsx
+│   │   ├── JsonlView.tsx
+│   │   ├── SubtitleView.tsx
+│   │   └── CanvasTrackView.tsx
 │   └── TimelineController.tsx       # scrubber + play/pause + rate + loop
 └── index.ts
 ```
@@ -57,7 +57,7 @@ clock.on('seek', ({ time, source }) => {})           // play/pause/seek/rate/loo
 
 ---
 
-## PlaylistEngine
+## Playlist
 
 Passive service. Parses m3u8, loads segments on demand, caches in LRU, prefetches ahead, polls for live updates.
 
@@ -108,12 +108,12 @@ const time = useClockValue(clock, 10);  // segment boundary check
 const time = useClockValue(clock, 4);   // highlight update
 ```
 
-### usePlaylistEngine(options, clock?)
+### usePlaylist(options, clock?)
 
-Creates a `PlaylistEngine`. When `clock` is provided, calls `clock.extendDuration()` on init and live updates.
+Creates a `Playlist`. When `clock` is provided, calls `clock.extendDuration()` on init and live updates.
 
 ```tsx
-const { engine, playlist, loading, error } = usePlaylistEngine({ url }, clock);
+const { engine, playlist, loading, error } = usePlaylist({ url }, clock);
 ```
 
 ### useSegment(engine, clock) — discrete data
@@ -124,12 +124,12 @@ Returns one decoded segment at a time. Tracks boundaries locally at ~10fps via `
 const { data, segment, loading, error } = useSegment<MyType[]>(engine, clock);
 ```
 
-### useTrackData(engine, clock) — continuous data
+### useTrackReducer(engine, clock) — continuous data
 
 Loads and merges contiguous segments into `Float32Array`s for interpolation. Returns a `Map<string, TrackSamples>` where each entry has `{ times, values, stride }`.
 
 ```tsx
-const { tracks, mergedRange, loading } = useTrackData(engine, clock);
+const { tracks, mergedRange, loading } = useTrackReducer(engine, clock);
 const pos = tracks.get('position'); // { times: Float32Array, values: Float32Array, stride: 3 }
 ```
 
@@ -138,7 +138,7 @@ The consumer decides how to query the merged data:
 - Nearest-neighbor lookup
 - Custom interpolation (slerp, cubic, etc.)
 
-`useTrackData` only handles loading + merging. It does not interpolate.
+`useTrackReducer` only handles loading + merging. It does not interpolate.
 
 ### When to use which
 
@@ -146,24 +146,24 @@ The consumer decides how to query the merged data:
 |-----------|--------------------|---------------------|------|
 | JSONL events | Yes | No | `useSegment` |
 | VTT subtitles | Yes | No | `useSegment` |
-| Position/rotation | No (keyframes) | Yes | `useTrackData` |
-| Sensor series | No (samples) | Yes | `useTrackData` |
+| Position/rotation | No (keyframes) | Yes | `useTrackReducer` |
+| Sensor series | No (samples) | Yes | `useTrackReducer` |
 
 ---
 
-## Player Components
+## View Components
 
 | Component | Data hook | Rendering | Render fps |
 |-----------|-----------|-----------|------------|
-| `VideoPlayer` | hls.js (not PlaylistEngine*) | `<video>` native | 0 (seek events only) |
-| `JsonlPlayer` | `useSegment` | React list | ~10 |
-| `SubtitlePlayer` | `useSegment` | React text | ~10 |
-| `CanvasTrackPlayer` | `useTrackData` | Canvas 2D imperative | 60 (0 React) |
+| `VideoPlayer` | hls.js (not Playlist*) | `<video>` native | 0 (seek events only) |
+| `JsonlView` | `useSegment` | React list | ~10 |
+| `SubtitleView` | `useSegment` | React text | ~10 |
+| `CanvasTrackView` | `useTrackReducer` | Canvas 2D imperative | 60 (0 React) |
 | `TimelineController` | `useClockValue(30)` | React scrubber | ~30 |
 
 All receive `clock` as a prop. `TimelineController` also receives `state` from `useTimeline`.
 
-*\*VideoPlayer does NOT use PlaylistEngine — hls.js is a complete HLS implementation that handles m3u8 parsing, segment loading, ABR, and video buffering via MediaSource Extensions. Using PlaylistEngine alongside it would duplicate network requests and our decoders cannot decode video media. Duration is synced to the clock via `<video>.durationchange` → `clock.extendDuration()`.*
+*\*VideoPlayer does NOT use Playlist — hls.js is a complete HLS implementation that handles m3u8 parsing, segment loading, ABR, and video buffering via MediaSource Extensions. Using Playlist alongside it would duplicate network requests and our decoders cannot decode video media. Duration is synced to the clock via `<video>.durationchange` → `clock.extendDuration()`.*
 
 ---
 
