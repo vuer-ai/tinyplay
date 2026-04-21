@@ -142,7 +142,8 @@ All accept `{ src: string; clock?: TimelineClock }` — omit `clock` when inside
 | `ActionLabelView` | `{ts, te, label, ...}` | — (discrete) |
 | `DetectionBoxView` | `{ts, te, label, bbox:[x,y,w,h]}` overlay | — (discrete) |
 | `BarTrackView` | generic `{ts, data: number[] \| number}` | lerp |
-| `ImuView` | `{ts, data: [ax,ay,az, gx,gy,gz]}` stride=6 | lerp |
+| `ImuChartView` | `{ts, data: [ax,ay,az, gx,gy,gz]}` stride=6 (rolling chart) | — |
+| `ImuGizmoView` | same schema, attitude indicator gizmo | — |
 | `JointAngleView` | `{ts, data: number[]}` stride=N | lerp |
 | `PoseView` | `{ts, data: [x,y,z, qx,qy,qz,qw]}` stride=7 | lerp + slerpQuat |
 | `TimelineController` | scrubber + play/pause + rate + loop | — |

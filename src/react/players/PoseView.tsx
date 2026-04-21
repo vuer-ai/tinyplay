@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { usePlaylist } from '../hooks/use-playlist';
-// `useMemo` is still used for `mergeOptions` (stable normalizer reference).
 import { useMergedTrack } from '../hooks/use-merged-track';
 import { useTrackSample } from '../hooks/use-track-sample';
 import { useClockValue } from '../hooks/use-clock-value';
@@ -60,12 +59,13 @@ const poseNormalizer: Normalizer<ContinuousSample[]> = (samples) => {
 };
 
 /**
- * PoseView — 6-DoF pose gizmo + top-down position grid.
+ * PoseView — rotating colored cube + top-down XY grid with a yaw-aware marker.
  *
- * Left panel: a 3-axis gizmo (R=X, G=Y, B=Z) rotated by the current
- * quaternion using an isometric projection. Right panel: a top-down XY grid
- * showing the trajectory tail and current position crosshair, plus a Z
- * altitude bar.
+ * Left: a 3D-looking cube drawn in SVG, with six face colors keyed to
+ * world axes (X=red, Y=green, Z=blue; negative variants darker). The cube
+ * is rotated by the current quaternion using painter's-algorithm face
+ * sorting. Right: a top-down position grid with a trail and a triangular
+ * marker oriented by yaw.
  *
  * ## Data format
  * JSONL lines of shape `{ ts: number, data: [x, y, z, qx, qy, qz, qw] }`.
@@ -73,8 +73,8 @@ const poseNormalizer: Normalizer<ContinuousSample[]> = (samples) => {
  *
  * ## Hooks used
  * `useMergedTrack` with a normalizer that splits each 7-tuple into
- * `"position"` (stride 3) and `"orientation"` (stride 4). Position uses
- * `lerp`; orientation uses `slerpQuat`.
+ * `"position"` (stride 3) and `"orientation"` (stride 4) tracks. Position
+ * uses `lerp`; orientation uses `slerpQuat`.
  */
 export function PoseView({
   src,
@@ -93,61 +93,36 @@ export function PoseView({
   const position = useTrackSample(posTrack, time);
   const orientation = useTrackSample(orientTrack, time, slerpQuat);
 
-  // Trail and axes are computed inline each render — `position`/`orientation`
-  // are reused Float32Arrays with mutated contents, so useMemo would return
-  // stale results. Both are cheap (linear passes + 3 vec3 rotations).
-  const trail = buildTrail(posTrack, time, 60);
-  const axes = orientation ? rotateAxesIso(orientation) : null;
+  // Everything below is computed inline each render — `position` and
+  // `orientation` are reused Float32Arrays with stable references but
+  // mutated contents, so useMemo deps don't detect changes.
+  const trail = buildTrail(posTrack, time, 80);
+  const yaw = orientation ? yawFromQuat(orientation) : 0;
 
   return (
     <div className={`bg-zinc-900 text-zinc-100 text-xs font-mono ${className ?? ''}`}>
       <div className="px-3 py-1.5 flex gap-4 border-b border-zinc-800 text-[10px]">
         <span className="text-zinc-400">Pose @ {time.toFixed(2)}s</span>
         <span className="ml-auto flex gap-3">
-          <LegendSwatch color="#f87171" label="X" />
-          <LegendSwatch color="#34d399" label="Y" />
-          <LegendSwatch color="#60a5fa" label="Z" />
+          <LegendSwatch color="#ef4444" label="+X" />
+          <LegendSwatch color="#22c55e" label="+Y" />
+          <LegendSwatch color="#3b82f6" label="+Z" />
         </span>
       </div>
-      <div className="grid grid-cols-2 gap-0" style={{ minHeight: 240 }}>
-        {/* Gizmo */}
-        <div className="border-r border-zinc-800 flex items-center justify-center">
-          <svg viewBox="-120 -120 240 240" width="100%" height="100%" style={{ maxHeight: 240 }}>
-            <defs>
-              <marker id="arrowX" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-                <path d="M 0 0 L 10 5 L 0 10 z" fill="#f87171" />
-              </marker>
-              <marker id="arrowY" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-                <path d="M 0 0 L 10 5 L 0 10 z" fill="#34d399" />
-              </marker>
-              <marker id="arrowZ" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-                <path d="M 0 0 L 10 5 L 0 10 z" fill="#60a5fa" />
-              </marker>
-            </defs>
-            {/* Faint reference axes */}
-            <AxisGhost />
-            {axes && (
-              <>
-                <AxisArrow to={axes.x} color="#f87171" marker="arrowX" />
-                <AxisArrow to={axes.y} color="#34d399" marker="arrowY" />
-                <AxisArrow to={axes.z} color="#60a5fa" marker="arrowZ" />
-              </>
-            )}
-            {!axes && (
-              <text x={0} y={0} fill="#52525b" fontSize={10} textAnchor="middle">waiting…</text>
-            )}
-          </svg>
+      <div className="grid grid-cols-2" style={{ minHeight: 260 }}>
+        <div className="border-r border-zinc-800 flex items-center justify-center p-3">
+          <OrientationCube q={orientation} />
         </div>
-        {/* Top-down grid */}
         <TopDownGrid
           extent={gridExtent}
           trail={trail}
           x={position ? position[0] : null}
           y={position ? position[1] : null}
           z={position ? position[2] : null}
+          yaw={yaw}
         />
       </div>
-      <div className="px-3 py-2 border-t border-zinc-800 grid grid-cols-2 gap-x-6 gap-y-0.5">
+      <div className="px-3 py-2 border-t border-zinc-800 grid grid-cols-2 gap-x-6 gap-y-0.5 text-[11px]">
         <div className="space-y-0.5">
           <div className="text-zinc-400">position (m)</div>
           {(['x', 'y', 'z'] as const).map((l, i) => (
@@ -158,7 +133,7 @@ export function PoseView({
           ))}
         </div>
         <div className="space-y-0.5">
-          <div className="text-zinc-400">orientation (quat, xyzw)</div>
+          <div className="text-zinc-400">orientation (xyzw)</div>
           {(['qx', 'qy', 'qz', 'qw'] as const).map((l, i) => (
             <div key={l} className="flex justify-between">
               <span className="text-zinc-500">{l}</span>
@@ -171,7 +146,7 @@ export function PoseView({
   );
 }
 
-// ---- helpers ---------------------------------------------------------------
+// ---- orientation cube -----------------------------------------------------
 
 function LegendSwatch({ color, label }: { color: string; label: string }) {
   return (
@@ -182,71 +157,130 @@ function LegendSwatch({ color, label }: { color: string; label: string }) {
   );
 }
 
-function AxisGhost() {
+const CUBE_CORNERS: Array<[number, number, number]> = [
+  [-1, -1, -1], [ 1, -1, -1], [ 1,  1, -1], [-1,  1, -1],
+  [-1, -1,  1], [ 1, -1,  1], [ 1,  1,  1], [-1,  1,  1],
+];
+
+interface CubeFace {
+  idx: [number, number, number, number]; // winding order — CCW viewed from outside
+  color: string;
+  label: string;
+}
+
+// Face colors: primary (bright) for +axis, darker for -axis.
+const CUBE_FACES: CubeFace[] = [
+  { idx: [5, 6, 2, 1], color: '#ef4444', label: '+X' }, // +X (right)
+  { idx: [0, 3, 7, 4], color: '#7f1d1d', label: '-X' }, // -X
+  { idx: [7, 3, 2, 6], color: '#22c55e', label: '+Y' }, // +Y (top)
+  { idx: [0, 4, 5, 1], color: '#166534', label: '-Y' }, // -Y
+  { idx: [4, 7, 6, 5], color: '#3b82f6', label: '+Z' }, // +Z (front)
+  { idx: [0, 1, 2, 3], color: '#1e3a8a', label: '-Z' }, // -Z
+];
+
+function OrientationCube({ q }: { q: Float32Array | null }) {
+  // Rotate 8 corners; apply a fixed view tilt so users see the cube in 3/4
+  // perspective rather than edge-on in the identity pose.
+  const rotated = CUBE_CORNERS.map(([x, y, z]) => {
+    const [rx, ry, rz] = q ? rotateByQuat(q, [x, y, z]) : [x, y, z];
+    return viewTilt(rx, ry, rz);
+  });
+
+  const scale = 68;
+  const projected = rotated.map(([x, y, z]) => ({
+    px: x * scale,
+    py: -y * scale, // SVG y-down
+    pz: z,
+  }));
+
+  // Average Z per face for painter's algorithm (higher z = closer to camera).
+  const faces = CUBE_FACES.map((f, fi) => {
+    const zAvg = (projected[f.idx[0]].pz + projected[f.idx[1]].pz + projected[f.idx[2]].pz + projected[f.idx[3]].pz) / 4;
+    return { ...f, zAvg, fi };
+  });
+  faces.sort((a, b) => a.zAvg - b.zAvg); // farther first
+
   return (
-    <g stroke="#27272a" strokeWidth={1}>
-      <line x1={-100} y1={0} x2={100} y2={0} />
-      <line x1={0} y1={-100} x2={0} y2={100} />
-      <circle cx={0} cy={0} r={60} fill="none" />
-    </g>
+    <svg viewBox="-120 -120 240 240" width="220" height="220" role="img" aria-label="Orientation cube">
+      {/* Ghost floor */}
+      <g stroke="#27272a" strokeWidth={1} fill="none">
+        <line x1={-100} y1={0} x2={100} y2={0} />
+        <line x1={0} y1={-100} x2={0} y2={100} />
+        <circle r={100} />
+      </g>
+      {faces.map((f) => {
+        const points = f.idx.map((i) => `${projected[i].px.toFixed(1)},${projected[i].py.toFixed(1)}`).join(' ');
+        const [cx, cy] = faceCenter(projected, f.idx);
+        return (
+          <g key={f.label}>
+            <polygon points={points} fill={f.color} stroke="#18181b" strokeWidth={1} strokeLinejoin="round" />
+            <text
+              x={cx}
+              y={cy + 3}
+              fill="rgba(255,255,255,0.9)"
+              fontSize={10}
+              fontFamily="ui-monospace, monospace"
+              textAnchor="middle"
+              pointerEvents="none"
+            >
+              {f.label}
+            </text>
+          </g>
+        );
+      })}
+    </svg>
   );
 }
 
-function AxisArrow({ to, color, marker }: { to: { px: number; py: number }; color: string; marker: string }) {
-  return (
-    <line
-      x1={0}
-      y1={0}
-      x2={to.px}
-      y2={to.py}
-      stroke={color}
-      strokeWidth={3}
-      strokeLinecap="round"
-      markerEnd={`url(#${marker})`}
-    />
-  );
+function faceCenter(
+  proj: Array<{ px: number; py: number; pz: number }>,
+  idx: [number, number, number, number],
+): [number, number] {
+  const cx = (proj[idx[0]].px + proj[idx[1]].px + proj[idx[2]].px + proj[idx[3]].px) / 4;
+  const cy = (proj[idx[0]].py + proj[idx[1]].py + proj[idx[2]].py + proj[idx[3]].py) / 4;
+  return [cx, cy];
 }
 
-/**
- * Isometric 3D→2D projection.
- * World axes (after quaternion rotation): each length=1.
- * Screen: X right, Y up (SVG flip), Z as isometric diagonal.
- */
-function rotateAxesIso(q: Float32Array) {
-  const ax = rotateVec(q, [1, 0, 0]);
-  const ay = rotateVec(q, [0, 1, 0]);
-  const az = rotateVec(q, [0, 0, 1]);
-  const scale = 80;
-  return {
-    x: projectIso(ax, scale),
-    y: projectIso(ay, scale),
-    z: projectIso(az, scale),
-  };
-}
-
-/** Rotate vector `v` by quaternion `q = [x, y, z, w]`. Returns `[vx, vy, vz]`. */
-function rotateVec(q: Float32Array, v: [number, number, number]): [number, number, number] {
-  const x = q[0], y = q[1], z = q[2], w = q[3];
+/** Rotate vec by quat `[qx, qy, qz, qw]`. Returns `[x, y, z]`. */
+function rotateByQuat(q: Float32Array, v: [number, number, number]): [number, number, number] {
+  const qx = q[0], qy = q[1], qz = q[2], qw = q[3];
   const [vx, vy, vz] = v;
-  // v' = q * v * q^-1, expanded
-  const ix = w * vx + y * vz - z * vy;
-  const iy = w * vy + z * vx - x * vz;
-  const iz = w * vz + x * vy - y * vx;
-  const iw = -x * vx - y * vy - z * vz;
-  const rx = ix * w + iw * -x + iy * -z - iz * -y;
-  const ry = iy * w + iw * -y + iz * -x - ix * -z;
-  const rz = iz * w + iw * -z + ix * -y - iy * -x;
-  return [rx, ry, rz];
+  // t = 2 * (q.xyz × v)
+  const tx = 2 * (qy * vz - qz * vy);
+  const ty = 2 * (qz * vx - qx * vz);
+  const tz = 2 * (qx * vy - qy * vx);
+  // v' = v + qw * t + q.xyz × t
+  return [
+    vx + qw * tx + (qy * tz - qz * ty),
+    vy + qw * ty + (qz * tx - qx * tz),
+    vz + qw * tz + (qx * ty - qy * tx),
+  ];
 }
 
-function projectIso([x, y, z]: [number, number, number], scale: number) {
-  // Classic 30° isometric. y-up in world → y-down in SVG.
-  const cos30 = Math.cos(Math.PI / 6);
-  const sin30 = Math.sin(Math.PI / 6);
-  const px = (x - y) * cos30 * scale;
-  const py = -((x + y) * sin30 - z) * scale;
-  return { px, py };
+/** Fixed camera tilt so the cube reads as 3D in the identity pose. */
+function viewTilt(x: number, y: number, z: number): [number, number, number] {
+  // Rotate around world X by -25°, then around world Y by 30°.
+  const rx = -25 * Math.PI / 180;
+  const ry = 30 * Math.PI / 180;
+  // Rx
+  let x1 = x;
+  let y1 = y * Math.cos(rx) - z * Math.sin(rx);
+  let z1 = y * Math.sin(rx) + z * Math.cos(rx);
+  // Ry
+  const x2 = x1 * Math.cos(ry) + z1 * Math.sin(ry);
+  const y2 = y1;
+  const z2 = -x1 * Math.sin(ry) + z1 * Math.cos(ry);
+  return [x2, y2, z2];
 }
+
+/** Yaw (rotation about world Z) from a quaternion — good for a top-down marker. */
+function yawFromQuat(q: Float32Array): number {
+  // Project the rotated +X axis onto the XY plane, take atan2.
+  const fwd = rotateByQuat(q, [1, 0, 0]);
+  return Math.atan2(fwd[1], fwd[0]);
+}
+
+// ---- top-down grid --------------------------------------------------------
 
 function buildTrail(
   posTrack: { times: Float32Array; values: Float32Array; stride: number } | undefined,
@@ -256,7 +290,7 @@ function buildTrail(
   if (!posTrack || posTrack.times.length < 2) return [];
   const { times, values, stride } = posTrack;
   const tail: Array<{ x: number; y: number }> = [];
-  const tailWindow = 4; // seconds
+  const tailWindow = 5; // seconds
   const t0 = now - tailWindow;
   const step = Math.max(1, Math.floor((times.length - 1) / maxPoints));
   for (let i = 0; i < times.length; i += step) {
@@ -274,12 +308,14 @@ function TopDownGrid({
   x,
   y,
   z,
+  yaw,
 }: {
   extent: number;
   trail: Array<{ x: number; y: number }>;
   x: number | null;
   y: number | null;
   z: number | null;
+  yaw: number;
 }) {
   const W = 200;
   const H = 200;
@@ -291,8 +327,8 @@ function TopDownGrid({
     : '';
 
   return (
-    <div className="relative">
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" style={{ maxHeight: 240 }}>
+    <div className="relative flex-1">
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" style={{ maxHeight: 260 }}>
         {/* Grid */}
         <g stroke="#27272a" strokeWidth={1}>
           {[0.25, 0.5, 0.75].map((f) => (
@@ -307,16 +343,16 @@ function TopDownGrid({
           <line x1={0} y1={H / 2} x2={W} y2={H / 2} />
         </g>
         {/* Trail */}
-        {path && <path d={path} stroke="#fbbf24" strokeWidth={1.5} fill="none" opacity={0.7} />}
-        {/* Cursor */}
+        {path && <path d={path} stroke="#fbbf24" strokeWidth={1.5} fill="none" opacity={0.75} />}
+        {/* Yaw-aware marker — triangle */}
         {x != null && y != null && (
-          <g>
-            <circle cx={scaleX(x)} cy={scaleY(y)} r={5} fill="#facc15" />
-            <circle cx={scaleX(x)} cy={scaleY(y)} r={10} fill="none" stroke="#facc15" strokeWidth={1} opacity={0.5} />
+          <g transform={`translate(${scaleX(x).toFixed(1)} ${scaleY(y).toFixed(1)}) rotate(${-yaw * 180 / Math.PI})`}>
+            <polygon points="11,0 -7,-6 -7,6" fill="#facc15" stroke="#18181b" strokeWidth={1} />
+            <circle r={14} fill="none" stroke="#facc15" strokeWidth={1} opacity={0.4} />
           </g>
         )}
         {/* Extent label */}
-        <text x={6} y={12} fill="#71717a" fontSize={9}>±{extent.toFixed(1)} m (xy)</text>
+        <text x={6} y={12} fill="#71717a" fontSize={9}>±{extent.toFixed(1)} m (xy) · ↑ = heading</text>
       </svg>
       {/* Z altitude bar */}
       {z != null && (
@@ -325,7 +361,7 @@ function TopDownGrid({
             className="absolute left-0 right-0 bg-blue-400 rounded"
             style={{
               top: '50%',
-              height: Math.abs(z / extent) * 50 + '%',
+              height: Math.min(50, Math.abs(z / extent) * 50) + '%',
               transform: z >= 0 ? 'translateY(-100%)' : 'translateY(0)',
             }}
           />

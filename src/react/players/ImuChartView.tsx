@@ -6,7 +6,7 @@ import type { TimelineClock } from '../../core/timeline';
 import type { TrackSamples } from '../../core/types';
 
 /**
- * One IMU sample. JSONL chunks for `ImuView` must contain one of these per line.
+ * One IMU sample. Shared schema for `ImuChartView` and `ImuGizmoView`.
  *
  * `data` is a flat 6-tuple in the order:
  *   [accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z]
@@ -16,7 +16,7 @@ export interface ImuSample {
   data: [number, number, number, number, number, number];
 }
 
-export interface ImuViewProps {
+export interface ImuChartViewProps {
   src: string;
   clock?: TimelineClock | null;
   className?: string;
@@ -33,7 +33,7 @@ const GYRO_COLORS = ['#fb923c', '#a78bfa', '#22d3ee']; // x y z — amber violet
 const AXIS_LABELS = ['X', 'Y', 'Z'];
 
 /**
- * ImuView — rolling time-series chart for 6-axis IMU data.
+ * ImuChartView — rolling time-series chart for 6-axis IMU data.
  *
  * Two stacked subplots (accel + gyro), each showing 3 colored channels
  * across a rolling time window ending at the current clock. Canvas 2D,
@@ -48,14 +48,14 @@ const AXIS_LABELS = ['X', 'Y', 'Z'];
  * imperative Canvas drawing driven by `clock.on('tick')` — no per-frame
  * React re-renders.
  */
-export function ImuView({
+export function ImuChartView({
   src,
   clock,
   className,
   window = 5,
   accelRange = 12,
   gyroRange = 1.5,
-}: ImuViewProps) {
+}: ImuChartViewProps) {
   const resolvedClock = useClockContext(clock);
   const { engine } = usePlaylist({ url: src }, resolvedClock);
   const { tracks } = useMergedTrack(engine, resolvedClock);

@@ -48,6 +48,8 @@ export type {
   MergedTrackOptions,
 } from './react/hooks/use-merged-track';
 export { useTrackSample } from './react/hooks/use-track-sample';
+export { useJointAnglesForUrdf } from './react/hooks/use-joint-angles-for-urdf';
+export type { UseJointAnglesForUrdfOptions } from './react/hooks/use-joint-angles-for-urdf';
 
 // React context
 export { ClockProvider, useClockContext } from './react/clock-context';
@@ -59,8 +61,10 @@ export { VideoPlayer } from './react/players/VideoPlayer';
 export { SubtitleView } from './react/players/SubtitleView';
 
 // Robot-focused pre-built views
-export { ImuView } from './react/players/ImuView';
-export type { ImuViewProps, ImuSample } from './react/players/ImuView';
+export { ImuChartView } from './react/players/ImuChartView';
+export type { ImuChartViewProps, ImuSample } from './react/players/ImuChartView';
+export { ImuGizmoView } from './react/players/ImuGizmoView';
+export type { ImuGizmoViewProps } from './react/players/ImuGizmoView';
 export { JointAngleView } from './react/players/JointAngleView';
 export type { JointAngleViewProps, JointAngleSample } from './react/players/JointAngleView';
 export { PoseView } from './react/players/PoseView';

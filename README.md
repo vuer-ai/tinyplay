@@ -159,7 +159,8 @@ All consumer hooks and views treat `clock` as optional — they fall back to the
 | `ActionLabelView` | `{ts, te, label}` discrete events | event-driven |
 | `DetectionBoxView` | bbox overlay `{ts, te, label, bbox:[x,y,w,h]}` | event-driven |
 | `BarTrackView` | generic N-channel continuous `{ts, data}` | any |
-| `ImuView` | `{ts, data: [ax,ay,az, gx,gy,gz]}` | 50–200 Hz |
+| `ImuChartView` | `{ts, data: [ax,ay,az, gx,gy,gz]}` (rolling chart) | 50–200 Hz |
+| `ImuGizmoView` | same schema, attitude-indicator gizmo | 50–200 Hz |
 | `JointAngleView` | `{ts, data: number[]}` N-DoF angles | 30–250 Hz |
 | `PoseView` | `{ts, data: [x,y,z, qx,qy,qz,qw]}` 6DoF | 30–120 Hz |
 | `TimelineController` | scrubber + play/pause + rate + loop | — |
