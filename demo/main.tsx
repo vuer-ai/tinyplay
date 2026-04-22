@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
-import '../src/styles.css';
+import '@vuer-ai/vuer-m3u/styles.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

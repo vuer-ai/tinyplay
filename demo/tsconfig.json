@@ -11,9 +11,8 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "declaration": true,
-    "declarationMap": true,
     "noEmit": true
   },
-  "include": ["src", "tests"]
+  "include": ["."],
+  "exclude": ["mock-data/**/*.ts", "node_modules", "dist"]
 }

@@ -11,21 +11,24 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
-    }
+    },
+    "./styles.css": "./src/styles.css"
   },
+  "sideEffects": ["*.css"],
   "files": [
     "dist",
+    "src/styles.css",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
-    "dev": "vite",
+    "dev": "pnpm --filter vuer-m3u-demo dev",
+    "preview": "pnpm --filter vuer-m3u-demo preview",
     "build": "vite build && tsc -p tsconfig.build.json",
-    "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "pnpm run build"
   },
   "repository": {
     "type": "git",
@@ -64,10 +67,8 @@
     "lru-cache": "^11.0.0"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "@vitejs/plugin-react": "^4.3.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "tailwindcss": "^4.0.0",

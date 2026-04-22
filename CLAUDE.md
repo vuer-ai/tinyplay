@@ -4,15 +4,24 @@ Generalized m3u8 playlist engine for any time-segmented data (JSONL, VTT, binary
 
 ## Package Manager
 
-**Always use `pnpm`**, not npm or yarn.
+**Always use `pnpm`**, not npm or yarn. The repo is a pnpm workspace with two packages: the library at `.` and the demo app at `demo/`.
 
 ```bash
-pnpm install      # install dependencies
-pnpm dev          # demo dev server
-pnpm test         # vitest
-pnpm typecheck    # tsc --noEmit
-pnpm build        # library build (vite + tsc declarations)
+pnpm install      # install dependencies for both workspaces
+pnpm dev          # proxies to demo workspace (pnpm --filter vuer-m3u-demo dev)
+pnpm test         # vitest (library)
+pnpm typecheck    # tsc --noEmit (library only)
+pnpm build        # library build (vite lib + tsc declarations)
 ```
+
+From the `demo/` directory you can also run `pnpm dev`, `pnpm build`, `pnpm preview`, `pnpm typecheck` directly.
+
+## Workspace Layout
+
+- **`.` — `@vuer-ai/vuer-m3u`**: the publishable library. Only `src/` + `tests/` are in scope. `vite.config.ts` builds the lib to `dist/`. `tsconfig.json` covers `src` + `tests`. No demo concerns in root config.
+- **`demo/` — `vuer-m3u-demo`** (private): standalone Vite app that consumes `@vuer-ai/vuer-m3u` via `workspace:*`. Its `vite.config.ts` uses a resolve alias to read `../src/index.ts` directly so editing library source hot-reloads the demo. `demo/mock-data/` is the Vite `publicDir` and is served at `/annotations/*`, `/video/*`, etc.
+
+The library's `package.json` also exposes `./styles.css` in `exports`, so the demo (and downstream consumers) import the stylesheet as `@vuer-ai/vuer-m3u/styles.css`. No file in `src/` is imported via relative path from `demo/`.
 
 ## Project Structure
 
@@ -44,8 +53,11 @@ src/react/          React integration layer
   clock-context      ClockProvider + useClockContext — let views/hooks pick up
                      the clock from React context instead of an explicit prop
 
-demo/               Demo app with mock data (served via Vite publicDir)
-tests/              vitest tests
+demo/               Separate workspace package (vuer-m3u-demo, private)
+                    — its own package.json / vite.config.ts / tsconfig.json
+                    — consumes @vuer-ai/vuer-m3u via workspace:*
+                    — mock-data/ served as Vite publicDir
+tests/              vitest tests (library)
 ```
 
 ## Key Design Decisions
