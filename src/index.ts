@@ -75,3 +75,10 @@ export { BarTrackView } from './react/players/BarTrackView';
 export type { BarTrackViewProps, BarTrackSample } from './react/players/BarTrackView';
 export { DetectionBoxView } from './react/players/DetectionBoxView';
 export type { DetectionBoxViewProps, DetectionEvent } from './react/players/DetectionBoxView';
+
+// Range-centric merge helper for discrete annotations (parallels useMergedTrack)
+export { useMergedEntries, mergeContiguousEntries } from './react/hooks/use-merged-entries';
+export type { MergedEntriesState, MergedEntriesOptions } from './react/hooks/use-merged-entries';
+
+// Multi-track timeline (Step 2 — core + 4 lane primitives)
+export * from './timeline';

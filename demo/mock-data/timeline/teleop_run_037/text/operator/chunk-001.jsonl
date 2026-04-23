@@ -1,0 +1,3 @@
+{"ts":0.4,"te":4.4,"label":"Approaching target"}
+{"ts":5,"te":8,"label":"Closing gripper"}
+{"ts":9,"te":12,"label":"Lifting object"}

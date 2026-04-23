@@ -12,6 +12,8 @@ import {
   JointAngleView,
   PoseView,
 } from '@vuer-ai/vuer-m3u';
+import { TimelineDemo } from './TimelineDemo';
+import { ThemeToggle } from './ThemeToggle';
 
 const VIDEO_URL = '/video/playlist.m3u8';
 const ANNOTATIONS_URL = '/annotations/playlist.m3u8';
@@ -30,11 +32,15 @@ type SectionProps = {
 
 function Section({ title, description, children }: SectionProps) {
   return (
-    <section className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
-      <header className="px-4 py-3 border-b border-zinc-800">
-        <h2 className="text-sm font-medium text-zinc-100">{title}</h2>
+    <section className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+      <header className="px-4 py-3 border-b border-zinc-200 dark:border-zinc-800">
+        <h2 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+          {title}
+        </h2>
         {description ? (
-          <p className="text-xs text-zinc-500 mt-1">{description}</p>
+          <p className="text-xs text-zinc-500 dark:text-zinc-500 mt-1">
+            {description}
+          </p>
         ) : null}
       </header>
       {children}
@@ -53,7 +59,7 @@ function WithController({ children }: WithControllerProps) {
   return (
     <ClockProvider clock={clock}>
       {children(clock)}
-      <div className="p-4 border-t border-zinc-800">
+      <div className="p-4 border-t border-zinc-200 dark:border-zinc-800">
         <TimelineController
           state={state}
           onPlay={play}
@@ -69,18 +75,35 @@ function WithController({ children }: WithControllerProps) {
 
 export function App() {
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
-      <header className="border-b border-zinc-800 px-6 py-5">
-        <h1 className="text-lg font-semibold">vuer-m3u demo</h1>
-        <p className="text-sm text-zinc-500 mt-1">
-          A gallery of the pre-built views in{' '}
-          <code className="text-sky-300">@vuer-ai/vuer-m3u</code>. Each panel has
-          its own <code className="text-sky-300">TimelineClock</code>, matching
-          the per-view demos in the docs.
-        </p>
+    <div className="min-h-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
+      <header className="border-b border-zinc-200 dark:border-zinc-800 px-6 py-5 flex items-start gap-4">
+        <div className="flex-1 min-w-0">
+          <h1 className="text-lg font-semibold">vuer-m3u demo</h1>
+          <p className="text-sm text-zinc-500 dark:text-zinc-500 mt-1">
+            A gallery of the pre-built views in{' '}
+            <code className="text-indigo-600 dark:text-indigo-300">
+              @vuer-ai/vuer-m3u
+            </code>
+            . Each panel has its own{' '}
+            <code className="text-indigo-600 dark:text-indigo-300">
+              TimelineClock
+            </code>
+            , matching the per-view demos in the docs.
+          </p>
+        </div>
+        <ThemeToggle />
       </header>
 
       <main className="max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="lg:col-span-2">
+          <Section
+            title="Multi-track Timeline"
+            description="A config-driven TimelineContainer with four lane primitives: VideoLane (segment cards), LineChartLane (canvas polyline), PillLane, MarkerLane. Click or drag the ruler / lane area to scrub; shift+wheel pans, cmd/ctrl+wheel zooms at cursor."
+          >
+            <TimelineDemo />
+          </Section>
+        </div>
+
         <Section
           title="VideoPlayer"
           description="HLS video playback via hls.js. Timeline duration is auto-synced to the <video> element."

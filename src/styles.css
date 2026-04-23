@@ -1,2 +1,13 @@
 @import "tailwindcss";
 @source "./react/**/*.{ts,tsx}";
+@source "./timeline/**/*.{ts,tsx}";
+
+/*
+ * Bind Tailwind's `dark:` variant to `data-theme="dark"`. Consumers flip the
+ * attribute on <html> (or any ancestor) to switch themes without depending on
+ * system preference. The provided ThemeProvider (if used) resolves the
+ * user's "system" choice to light/dark based on prefers-color-scheme, then
+ * writes the resolved value to data-theme — so this single selector covers
+ * all three states.
+ */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
