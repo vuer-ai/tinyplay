@@ -1,11 +1,14 @@
 import { useEffect, useRef } from 'react';
 import Hls from 'hls.js';
 import type { TimelineClock } from '../../core/timeline';
+import type { DtypeRef } from './dtype-helpers';
 import { useClockContext } from '../clock-context';
 
 interface VideoPlayerProps {
   src: string;
   clock?: TimelineClock | null;
+  /** Optional dtype id or spec. Informational — passed by `<TrackerContainer>` during dispatch. */
+  dtype?: DtypeRef;
   className?: string;
 }
 

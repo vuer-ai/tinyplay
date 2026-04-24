@@ -101,7 +101,6 @@ export const VideoLane: LaneComponent<VideoLaneProps> = ({
     </div>
   );
 };
-VideoLane.__viewName = 'VideoLane';
 
 // ---------------------------------------------------------------------------
 // Thumbnail plumbing

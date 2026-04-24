@@ -8,6 +8,7 @@ import { slerpQuat } from '../../core/interpolators';
 import type { Normalizer } from '../../core/normalize';
 import type { ContinuousSample } from '../../core/samples';
 import type { TimelineClock } from '../../core/timeline';
+import type { DtypeRef } from './dtype-helpers';
 
 /**
  * One 6-DoF pose sample. `data` is `[x, y, z, qx, qy, qz, qw]`.
@@ -21,6 +22,8 @@ export interface PoseSample {
 export interface PoseViewProps {
   src: string;
   clock?: TimelineClock | null;
+  /** Optional dtype id or spec. Informational — passed by `<TrackerContainer>` during dispatch. */
+  dtype?: DtypeRef;
   className?: string;
   /** Display fps. Defaults to 30. */
   fps?: number;

@@ -198,7 +198,6 @@ export const PillLane: LaneComponent<PillLaneProps> = (props) => {
   if (props.src) return <PillLaneSrc {...props} src={props.src} />;
   return <PillLaneData {...props} data={props.data!} />;
 };
-PillLane.__viewName = 'PillLane';
 
 function pickColor(color: string | undefined): SemanticColor {
   return isSemanticColor(color) ? color : DEFAULT_COLOR;

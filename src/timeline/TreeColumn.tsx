@@ -1,8 +1,8 @@
 import type React from 'react';
 import { Icon } from './Icon';
 import { TreeCellDefault } from './TreeCellDefault';
-import type { TrackConfig } from './types/config';
-import type { LaneRegistry } from './types/lanes';
+import type { TrackRow } from './types/config';
+import type { TimelineViews } from '../dtypes/types';
 import type { TreeRow } from './tree';
 
 export interface TreeColumnProps {
@@ -17,13 +17,13 @@ export interface TreeColumnProps {
   hiddenInherited: ReadonlyMap<string, boolean>;
   selected: string | null;
   hovered: string | null;
-  registry: LaneRegistry;
+  views: TimelineViews;
 
   onToggleCollapsed(id: string): void;
   onToggleHidden(id: string): void;
   onSelect(id: string | null): void;
   onHover(id: string | null): void;
-  onContextMenu?: (track: TrackConfig, e: React.MouseEvent) => void;
+  onContextMenu?: (track: TrackRow, e: React.MouseEvent) => void;
 }
 
 export interface TreeSearchProps {
@@ -41,12 +41,7 @@ export interface TreeSearchProps {
 /**
  * Search input with `Aa` case-sensitive and `.*` regex toggles — mirrors
  * vuer-uikit's `TreeSearchBar` pill style (h-6 · rounded-[10px] · slot-based
- * layout). The 10 px radius on a 24 px input is deliberately over-rounded
- * relative to content — that is what reads as "chip" rather than "box".
- *
- * Regex errors are surfaced by coloring the input text red rather than
- * throwing. When the query is non-empty and valid, a small "N results"
- * line shows below the chip.
+ * layout).
  */
 export function TreeSearch({
   value,
@@ -117,14 +112,9 @@ export function TreeSearch({
 }
 
 /**
- * Virtualized left column. Renders only rows inside `visibleRange` and
- * positions them absolutely at their layout y-offset inside a
- * `totalHeight`-tall spacer so the outer scroller gives correct
- * scrollbar semantics.
- *
- * Per-view `TreeCell` overrides come from `registry[view].treeCell`;
- * absent ones fall back to `TreeCellDefault`. The icon on the default
- * cell comes from `registry[view].icon` (or `track.icon` if set).
+ * Virtualized left column. Dispatches through `views[track.dtype]` for
+ * per-view `TreeCell` overrides; absent ones fall back to `TreeCellDefault`.
+ * Group rows always use the default cell (no per-dtype override slot).
  */
 export function TreeRows({
   rows,
@@ -136,13 +126,13 @@ export function TreeRows({
   hiddenInherited,
   selected,
   hovered,
-  registry,
+  views,
   onToggleCollapsed,
   onToggleHidden,
   onSelect,
   onHover,
   onContextMenu,
-}: Omit<TreeColumnProps, 'width' | 'filter' | 'onFilterChange'>) {
+}: Omit<TreeColumnProps, 'width'>) {
   const [first, last] = visibleRange;
   return (
     <div style={{ height: totalHeight, position: 'relative' }}>
@@ -150,14 +140,21 @@ export function TreeRows({
         const idx = first + i;
         const layout = rowLayout[idx];
         if (!layout) return null;
-        const def = registry[r.track.view];
-        const TreeCell = def?.treeCell ?? TreeCellDefault;
-        const hoveredRow = hovered === r.track.id;
-        const selectedRow = selected === r.track.id;
+
+        const entry = r.kind === 'track' ? views[r.track.dtype] : undefined;
+        const TreeCell = entry?.treeCell ?? TreeCellDefault;
+        const hoveredRow = hovered === r.id;
+        const selectedRow = selected === r.id;
+        const isGroup = r.kind === 'group';
+        const resolvedIcon =
+          r.kind === 'track'
+            ? r.track.icon ?? entry?.icon
+            : r.config.icon;
+
         return (
           <div
-            key={r.track.id}
-            className={rowWrapperClass(r.track, selectedRow, hoveredRow)}
+            key={r.id}
+            className={rowWrapperClass(isGroup, selectedRow, hoveredRow)}
             style={{
               position: 'absolute',
               left: 0,
@@ -166,11 +163,11 @@ export function TreeRows({
               height: layout.h,
               overflow: 'hidden',
             }}
-            onMouseEnter={() => onHover(r.track.id)}
+            onMouseEnter={() => onHover(r.id)}
             onMouseLeave={() => onHover(null)}
-            onClick={() => onSelect(r.track.id)}
+            onClick={() => onSelect(r.id)}
             onContextMenu={
-              onContextMenu
+              onContextMenu && r.kind === 'track'
                 ? (e) => {
                     e.preventDefault();
                     onContextMenu(r.track, e);
@@ -179,20 +176,16 @@ export function TreeRows({
             }
           >
             <TreeCell
-              track={r.track}
-              depth={r.depth}
-              hasChildren={r.hasChildren}
-              expanded={!collapsed.has(r.track.id)}
+              row={r}
+              expanded={!collapsed.has(r.id)}
               hovered={hoveredRow}
               selected={selectedRow}
-              hiddenDirect={hiddenDirect.has(r.track.id)}
-              hiddenInherited={hiddenInherited.get(r.track.id) ?? false}
+              hiddenDirect={hiddenDirect.has(r.id)}
+              hiddenInherited={hiddenInherited.get(r.id) ?? false}
               height={layout.h}
-              icon={r.track.icon ?? def?.icon}
-              isLast={r.isLast}
-              ancestorIsLast={r.ancestorIsLast}
-              onToggleExpanded={() => onToggleCollapsed(r.track.id)}
-              onToggleHidden={() => onToggleHidden(r.track.id)}
+              icon={resolvedIcon}
+              onToggleExpanded={() => onToggleCollapsed(r.id)}
+              onToggleHidden={() => onToggleHidden(r.id)}
             />
           </div>
         );
@@ -202,16 +195,13 @@ export function TreeRows({
 }
 
 function rowWrapperClass(
-  track: TrackConfig,
+  isGroup: boolean,
   selected: boolean,
   hovered: boolean,
 ): string {
-  // No inter-row borders — the reference relies on spacing + hover-bg to
-  // separate rows, which reads cleaner at this density. Bars/markers on
-  // the right still have their own visual weight.
   const base = 'transition-colors';
   if (selected) return `${base} bg-indigo-50/70 dark:bg-indigo-500/10`;
   if (hovered) return `${base} bg-zinc-100/60 dark:bg-zinc-800/40`;
-  if (track.view === 'Group') return `${base} bg-zinc-50/70 dark:bg-zinc-900/40`;
+  if (isGroup) return `${base} bg-zinc-50/70 dark:bg-zinc-900/40`;
   return base;
 }

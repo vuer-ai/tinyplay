@@ -1,6 +1,8 @@
 import { createElement } from 'react';
-import type { TrackConfig } from './types/config';
-import type { LaneRegistry } from './types/lanes';
+import type React from 'react';
+import type { TrackRow } from './types/config';
+import type { TimelineViews } from '../dtypes/types';
+import { getDtype } from '../dtypes/registry';
 import type { TreeRow } from './tree';
 import { PlaceholderLane } from './lanes/PlaceholderLane';
 
@@ -9,23 +11,27 @@ export interface LaneRowsProps {
   rowLayout: ReadonlyArray<{ y: number; h: number }>;
   visibleRange: readonly [number, number];
   totalHeight: number;
-  registry: LaneRegistry;
+  views: TimelineViews;
   hiddenDirect: ReadonlySet<string>;
   hiddenInherited: ReadonlyMap<string, boolean>;
   hovered: string | null;
   onHover(id: string | null): void;
-  onContextMenu?: (track: TrackConfig, e: React.MouseEvent) => void;
+  onContextMenu?: (track: TrackRow, e: React.MouseEvent) => void;
 }
 
 /**
- * Flatten a TrackConfig into the shape a lane component expects. Visual
- * fields sit at the top; `props` spreads last so per-view overrides tune
- * rendering without clobbering identity.
+ * Flatten a `TrackRow` into the shape a lane component expects. Merge
+ * order: identity (id, name, path, visible, height, color, icon, src,
+ * data) → dtype.defaults → track.props → `dtype` + `path` injected props.
+ * Track-level `props` always wins over dtype defaults.
  */
-function laneProps(t: TrackConfig): Record<string, unknown> {
+function laneProps(t: TrackRow): Record<string, unknown> {
+  const spec = getDtype(t.dtype);
+  const leaf = t.path.split('/').pop() ?? t.path;
   const base: Record<string, unknown> = {
     id: t.id,
-    name: t.name,
+    name: t.name ?? leaf,
+    path: t.path,
     visible: t.visible,
     height: t.height,
     color: t.color,
@@ -33,21 +39,25 @@ function laneProps(t: TrackConfig): Record<string, unknown> {
   };
   if (t.src !== undefined) base.src = t.src;
   if (t.data !== undefined) base.data = t.data;
-  return { ...base, ...(t.props ?? {}) };
+  return {
+    ...base,
+    ...(spec?.defaults ?? {}),
+    ...(t.props ?? {}),
+    dtype: spec,
+  };
 }
 
 /**
- * Virtualized right-side rows. Only rows inside `visibleRange` are
- * rendered; off-screen lanes are unmounted to keep the DOM small. The
- * engine registry (see `engine-registry.tsx`) keeps Playlist caches
- * alive across this churn so re-entry is instant.
+ * Virtualized right-side rows. Only rows inside `visibleRange` are rendered;
+ * off-screen lanes are unmounted. Group rows have no lane body — the
+ * tree-side header carries the visual weight.
  */
 export function LaneRows({
   rows,
   rowLayout,
   visibleRange,
   totalHeight,
-  registry,
+  views,
   hiddenDirect,
   hiddenInherited,
   hovered,
@@ -61,16 +71,25 @@ export function LaneRows({
         const idx = first + i;
         const layout = rowLayout[idx];
         if (!layout) return null;
-        const def = registry[r.track.view];
-        const Lane = def?.lane;
-        const isGroup = r.track.view === 'Group';
+
+        const isGroup = r.kind === 'group';
         const hiddenRow =
-          hiddenDirect.has(r.track.id) ||
-          (hiddenInherited.get(r.track.id) ?? false);
-        const hoveredRow = hovered === r.track.id;
+          hiddenDirect.has(r.id) ||
+          (hiddenInherited.get(r.id) ?? false);
+        const hoveredRow = hovered === r.id;
+
+        let body: React.ReactNode = null;
+        if (r.kind === 'track') {
+          const entry = views[r.track.dtype];
+          const Lane = entry?.lane;
+          body = Lane
+            ? createElement(Lane, laneProps(r.track))
+            : <PlaceholderLane track={r.track} />;
+        }
+
         return (
           <div
-            key={r.track.id}
+            key={r.id}
             className={laneRowClass(isGroup, hoveredRow, hiddenRow)}
             style={{
               position: 'absolute',
@@ -80,10 +99,10 @@ export function LaneRows({
               height: layout.h,
               overflow: 'hidden',
             }}
-            onMouseEnter={() => onHover(r.track.id)}
+            onMouseEnter={() => onHover(r.id)}
             onMouseLeave={() => onHover(null)}
             onContextMenu={
-              onContextMenu
+              onContextMenu && r.kind === 'track'
                 ? (e) => {
                     e.preventDefault();
                     onContextMenu(r.track, e);
@@ -91,11 +110,7 @@ export function LaneRows({
                 : undefined
             }
           >
-            <div className="relative h-full">
-              {Lane
-                ? createElement(Lane, laneProps(r.track))
-                : <PlaceholderLane track={r.track} />}
-            </div>
+            <div className="relative h-full">{body}</div>
           </div>
         );
       })}
@@ -108,7 +123,6 @@ function laneRowClass(
   hovered: boolean,
   hidden: boolean,
 ): string {
-  // No border between lanes — matches the reference's airy density.
   let cls = 'transition-colors';
   if (isGroup) {
     cls += ' bg-zinc-50/80 dark:bg-zinc-900/30';

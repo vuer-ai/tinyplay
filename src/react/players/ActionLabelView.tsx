@@ -4,6 +4,7 @@ import { useSegment } from '../hooks/use-segment';
 import { useClockValue } from '../hooks/use-clock-value';
 import { useClockContext } from '../clock-context';
 import type { TimelineClock } from '../../core/timeline';
+import type { DtypeRef } from './dtype-helpers';
 
 /**
  * One action-label event — a time-bounded discrete annotation.
@@ -19,6 +20,8 @@ export interface ActionEvent {
 export interface ActionLabelViewProps {
   src: string;
   clock?: TimelineClock | null;
+  /** Optional dtype id or spec. Informational — passed by `<TrackerContainer>` during dispatch. */
+  dtype?: DtypeRef;
   className?: string;
   /** Highlight-check fps. Defaults to 10. */
   fps?: number;

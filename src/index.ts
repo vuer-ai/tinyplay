@@ -52,13 +52,30 @@ export { useJointAnglesForUrdf } from './react/hooks/use-joint-angles-for-urdf';
 export type { UseJointAnglesForUrdfOptions } from './react/hooks/use-joint-angles-for-urdf';
 
 // React context
-export { ClockProvider, useClockContext } from './react/clock-context';
+export {
+  ClockContext,
+  ClockProvider,
+  useClockContext,
+} from './react/clock-context';
 export type { ClockProviderProps } from './react/clock-context';
 
 // React components
 export { TimelineController } from './react/TimelineController';
 export { VideoPlayer } from './react/players/VideoPlayer';
 export { SubtitleView } from './react/players/SubtitleView';
+
+// Standalone-view dispatch (instant-state counterpart of <TimelineContainer>)
+export { TrackerContainer } from './react/TrackerContainer';
+export type {
+  TrackerContainerProps,
+  TrackerViews,
+} from './react/TrackerContainer';
+export { defaultTrackerViews } from './react/default-tracker-views';
+export {
+  resolveDtypeDefaults,
+  resolveDtypeSpec,
+} from './react/players/dtype-helpers';
+export type { DtypeRef } from './react/players/dtype-helpers';
 
 // Robot-focused pre-built views
 export { ImuChartView } from './react/players/ImuChartView';

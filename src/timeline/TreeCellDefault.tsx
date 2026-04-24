@@ -7,21 +7,13 @@ const KEEP_END_CHARS = 9;
 /**
  * Default left-side row renderer with waterfall-style L-shaped tree guides.
  *
- * Layout per column (from left to right):
- *   - one slot per ancestor depth: vertical line if that ancestor is *not*
- *     its parent's last child, empty otherwise.
- *   - the current depth slot (when `depth > 0`): an L-corner for the last
- *     child (`└─`), a T-junction for a non-last child (`├─`).
- *   - the content row: rotating chevron · colored icon chip · label · eye.
- *
- * Long labels keep the final `KEEP_END_CHARS` characters visible and
- * truncate the middle (the tail carries the distinguishing suffix on run
- * ids like `experiment-v7-abc123.log`).
+ * Works for both track rows and synthesized group rows. Group rows carry
+ * a bolder label + no eye toggle on leaves; track rows carry their dtype
+ * icon chip. Long labels keep the final `KEEP_END_CHARS` characters
+ * visible and truncate the middle (tail carries distinguishing suffixes).
  */
 export function TreeCellDefault({
-  track,
-  depth,
-  hasChildren,
+  row,
   expanded,
   hovered,
   hiddenDirect,
@@ -30,12 +22,18 @@ export function TreeCellDefault({
   icon,
   onToggleExpanded,
   onToggleHidden,
-  isLast,
-  ancestorIsLast,
 }: TreeCellProps) {
   const showEye = hovered || hiddenDirect || hiddenInherited;
-  const isGroup = track.view === 'Group';
+  const isGroup = row.kind === 'group';
   const dimmed = hiddenDirect || hiddenInherited;
+
+  const depth = row.depth;
+  const isLast = row.isLast;
+  const ancestorIsLast = row.ancestorIsLast;
+
+  const label = isGroup ? row.name : row.track.name ?? leafOf(row.track.path);
+  const titleAttr = isGroup ? row.path : row.track.path;
+  const color = isGroup ? row.config.color : row.track.color;
 
   return (
     <div
@@ -56,24 +54,27 @@ export function TreeCellDefault({
               style={{ width: INDENT_PX }}
             >
               {!parentIsLast && i < depth - 1 ? (
-                <span className="absolute inset-y-0 left-[9px] border-l border-zinc-200/70 dark:border-zinc-700/60" />
+                <span className="absolute inset-y-0 left-[14px] border-l border-zinc-200/70 dark:border-zinc-700/60" />
               ) : null}
-              {/* Last column: draw the L (isLast) or T-junction */}
               {i === depth - 1 ? (
                 <span className="absolute inset-0">
-                  {/* Top half: vertical descent from parent */}
-                  <span className="absolute top-0 left-[9px] h-1/2 w-px bg-zinc-200/70 dark:bg-zinc-700/60" />
-                  {/* Horizontal connector to the node */}
-                  <span
-                    className={
-                      'absolute top-1/2 left-[9px] h-px bg-zinc-200/70 dark:bg-zinc-700/60 ' +
-                      (isLast ? '' : '')
-                    }
-                    style={{ width: INDENT_PX - 13 }}
-                  />
-                  {/* Bottom half: only drawn for non-last siblings */}
-                  {!isLast && (
-                    <span className="absolute top-1/2 bottom-0 left-[9px] w-px bg-zinc-200/70 dark:bg-zinc-700/60" />
+                  {isLast ? (
+                    /* Rounded L-corner for the last child: one element with
+                       border-left + border-bottom + rounded-bl so the join
+                       curves instead of being a sharp 90°. */
+                    <span
+                      className="absolute top-0 left-[14px] border-l border-b border-zinc-200/70 dark:border-zinc-700/60 rounded-bl-md"
+                      style={{ height: '50%', width: 12 }}
+                    />
+                  ) : (
+                    /* T-junction: full-height vertical + horizontal connector */
+                    <>
+                      <span className="absolute top-0 bottom-0 left-[14px] w-px bg-zinc-200/70 dark:bg-zinc-700/60" />
+                      <span
+                        className="absolute top-1/2 left-[14px] h-px bg-zinc-200/70 dark:bg-zinc-700/60"
+                        style={{ width: 12 }}
+                      />
+                    </>
                   )}
                 </span>
               ) : null}
@@ -83,11 +84,8 @@ export function TreeCellDefault({
       </div>
 
       <div className="flex items-center gap-1 flex-1 min-w-0 pl-1.5">
-        {/* Chevron: rendered only for rows with children. Leaves skip the
-            slot entirely so their icon slides into the chevron's column —
-            matching the waterfall's visual alignment (a leaf at depth N
-            sits where its parent's icon sits). */}
-        {hasChildren && (
+        {/* Chevron: rendered only for rows with children. */}
+        {row.hasChildren && (
           <button
             type="button"
             onClick={(e) => {
@@ -112,17 +110,13 @@ export function TreeCellDefault({
         <span
           className={
             'w-4 h-4 flex items-center justify-center rounded-[3px] shrink-0 ' +
-            colorStyles(track.color)
+            colorStyles(color)
           }
         >
           <Icon name={icon ?? (isGroup ? 'folder' : 'diamond')} size={13} />
         </span>
 
-        <TruncatedLabel
-          label={track.name ?? track.id}
-          isGroup={isGroup}
-          dimmed={dimmed}
-        />
+        <TruncatedLabel label={label} isGroup={isGroup} dimmed={dimmed} title={titleAttr} />
 
         <div
           className="flex gap-0.5 shrink-0"
@@ -135,7 +129,7 @@ export function TreeCellDefault({
               onToggleHidden();
             }}
             className="w-5 h-5 flex items-center justify-center rounded text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200/60 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 cursor-pointer"
-            aria-label={hiddenDirect ? 'show track' : 'hide track'}
+            aria-label={hiddenDirect ? 'show' : 'hide'}
             title={hiddenDirect ? 'show' : 'hide'}
           >
             <Icon name={hiddenDirect ? 'eye-off' : 'eye'} size={13} />
@@ -146,19 +140,25 @@ export function TreeCellDefault({
   );
 }
 
+function leafOf(path: string): string {
+  const i = path.lastIndexOf('/');
+  return i < 0 ? path : path.slice(i + 1);
+}
+
 /**
- * Keep the last `KEEP_END_CHARS` of the label pinned on the right; the rest
- * truncates in the middle when the row narrows. For short labels the whole
- * string shows normally.
+ * Keep the last `KEEP_END_CHARS` of the label pinned on the right; the
+ * rest truncates in the middle when the row narrows.
  */
 function TruncatedLabel({
   label,
   isGroup,
   dimmed,
+  title,
 }: {
   label: string;
   isGroup: boolean;
   dimmed: boolean;
+  title: string;
 }) {
   const base =
     'text-xs select-none ' +
@@ -169,10 +169,7 @@ function TruncatedLabel({
 
   if (label.length <= KEEP_END_CHARS) {
     return (
-      <span
-        className={'flex-1 min-w-0 truncate ' + base}
-        title={label}
-      >
+      <span className={'flex-1 min-w-0 truncate ' + base} title={title}>
         {label}
       </span>
     );
@@ -183,7 +180,7 @@ function TruncatedLabel({
   return (
     <span
       className={'flex min-w-0 flex-1 whitespace-nowrap ' + base}
-      title={label}
+      title={title}
     >
       <span className="min-w-0 truncate">{head}</span>
       <span className="shrink-0">{tail}</span>
@@ -191,11 +188,6 @@ function TruncatedLabel({
   );
 }
 
-/**
- * Tailwind classes for the small colored icon chip. Matches the palette
- * in `./colors.ts` so `TrackConfig.color` reads the same way on both
- * sides of the split.
- */
 function colorStyles(color: string | undefined): string {
   switch (color) {
     case 'blue':

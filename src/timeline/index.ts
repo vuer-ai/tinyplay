@@ -1,30 +1,26 @@
 /**
  * Public entry for the timeline submodule.
  *
- * Step 3 scope: types + runtime validation + display components
- * (`<TimelineContainer>` + core lane primitives + tree + virtualization +
- * engine registry + supporting viewport / coords utilities).
- *
- * Business-name recipes (QposLane, EventLane, ...) and doc-site pages
- * remain for later.
+ * TimelineContainer + 4 lane primitives + tree + viewport utilities. Plus
+ * the dtype registry (re-exported from `../dtypes`) so consumers can
+ * `import { registerDtype, defaultTimelineViews } from '@vuer-ai/vuer-m3u'`.
  */
 
 // Canonical data shapes
 export type { Sample, AnnotationEntry } from './types/data';
 
-// Display config (canonical serializable form)
+// Display config
 export type {
   TimelineConfig,
-  TrackConfig,
+  TrackRow,
   TimelineMeta,
+  GroupConfig,
 } from './types/config';
 
-// Lane prop types + registry
+// Lane prop types + tree-cell contract
 export type {
   LaneVisualProps,
   LaneDataProps,
-  LaneRegistry,
-  LaneDefinition,
   LaneComponent,
   TreeCellProps,
   VideoLaneProps,
@@ -36,10 +32,25 @@ export type {
   RibbonLaneProps,
 } from './types/lanes';
 
+// Dtype registry
+export {
+  registerDtype,
+  getDtype,
+  listDtypes,
+  hasDtype,
+  BUILTIN_DTYPES,
+} from '../dtypes';
+export type {
+  DtypeId,
+  DtypeSpec,
+  TimelineViews,
+  TimelineViewEntry,
+} from '../dtypes';
+
 // Runtime validation
 export {
   assertSrcOrData,
-  validateTrackConfig,
+  validateTrackRow,
   validateTimelineConfig,
 } from './validate';
 
@@ -67,20 +78,18 @@ export type {
   TimelineViewportProviderProps,
 } from './viewport';
 
-// Auto-follow hook (keeps playhead visible during playback)
+// Auto-follow hook
 export { useAutoFollow } from './use-auto-follow';
 
-// Tree utilities (parentId-based hierarchy)
+// Tree utilities (path-based)
 export {
-  buildChildren,
   flattenTree,
   hiddenInheritance,
   initialCollapsed,
 } from './tree';
-export type { TreeRow } from './tree';
+export type { TreeRow, TreeTrackRow, TreeGroupRow } from './tree';
 
-// Hover guide — legacy amber line (kept for back-compat; TimelineCursor is
-// the current default used by <TimelineContainer>).
+// Hover guide — legacy
 export { HoverGuide } from './HoverGuide';
 export type { HoverGuideProps } from './HoverGuide';
 
@@ -88,8 +97,7 @@ export type { HoverGuideProps } from './HoverGuide';
 export { Tick } from './Tick';
 export { EventDot } from './EventDot';
 
-// Cursor overlay (line + readout pill) + host component that wires it to
-// pointer moves over the lane area
+// Cursor overlay + hover cursor
 export { CursorOverlay } from './CursorOverlay';
 export type { CursorOverlayProps } from './CursorOverlay';
 export { TimelineCursor } from './TimelineCursor';
@@ -120,7 +128,7 @@ export { formatDuration } from './duration';
 export { Icon } from './Icon';
 export type { IconName, IconProps } from './Icon';
 
-// Tree cell (default implementation)
+// Tree cell (default)
 export { TreeCellDefault } from './TreeCellDefault';
 
 // Lane fallback + shared hatch overlay
@@ -134,10 +142,9 @@ export { VideoLane } from './lanes/VideoLane';
 export { LineChartLane } from './lanes/LineChartLane';
 export { PillLane } from './lanes/PillLane';
 export { MarkerLane } from './lanes/MarkerLane';
-export { GroupLane } from './lanes/GroupLane';
 
-// Default lane registry
-export { defaultLaneRegistry } from './lanes/registry';
+// Default dtype → lane mapping for `<TimelineContainer views>`
+export { defaultTimelineViews } from './lanes/registry';
 
 // Root component
 export { TimelineContainer } from './TimelineContainer';

@@ -1,108 +1,209 @@
-import type { TrackConfig } from './types/config';
+import type { TrackRow } from './types/config';
+import type { GroupConfig } from '../dtypes/types';
 
 /**
- * Tree utilities: turn a flat `TrackConfig[]` (with `parentId` pointing at
- * another track's `id`) into a depth-first sequence of visible rows, with
- * support for collapsing nodes and filtering by label substring.
+ * Tree utilities for path-based hierarchy.
+ *
+ * Tracks carry a `path` like `"robot/joint_angles"`; groups are synthesized
+ * client-side from the `/`-separated prefixes. `TimelineConfig.groups`
+ * supplies optional per-prefix styling (name override, icon, color,
+ * initial expanded state).
  *
  * A row is visible iff:
- *   - all ancestors are expanded (not in `collapsed`)
- *   - either the filter is empty, or the node itself matches, or a
+ *   - all ancestor prefixes are expanded (not in `collapsed`)
+ *   - either the filter is empty, or the row itself matches, or a
  *     descendant matches (ancestors stay visible so the match can be
  *     reached), or an ancestor matches (descendants stay visible under a
  *     matching ancestor).
- *
- * Groups (`view: 'Group'`) are ordinary parents in this tree; no special
- * handling here. LaneColumn renders null for group nodes; TreeColumn
- * renders a header cell with a chevron.
  */
 
-export interface TreeRow {
-  track: TrackConfig;
+/**
+ * Track row in the tree (leaf node — tracks have no descendants in this
+ * model; nested tracks go under their path-prefix group).
+ */
+export interface TreeTrackRow {
+  kind: 'track';
+  /** Stable identifier — `TrackRow.id`. */
+  id: string;
+  track: TrackRow;
   depth: number;
-  hasChildren: boolean;
-  /** True when this row is the last child of its parent in the visible tree. */
+  /** Always false for tracks. Kept for rendering uniformity. */
+  hasChildren: false;
   isLast: boolean;
-  /**
-   * Per-ancestor flag: `ancestorIsLast[i]` is true when the ancestor at depth
-   * `i` is the last of its siblings. Drives the tree-guide painter: a "last"
-   * ancestor contributes no vertical line to the column below it.
-   */
   ancestorIsLast: boolean[];
 }
 
-/** Adjacency map: parentId → list of child tracks, in config order. */
-export function buildChildren(tracks: readonly TrackConfig[]): Map<string | null, TrackConfig[]> {
-  const children = new Map<string | null, TrackConfig[]>();
-  for (const t of tracks) {
-    const key = t.parentId ?? null;
-    if (!children.has(key)) children.set(key, []);
-    children.get(key)!.push(t);
-  }
-  return children;
+/**
+ * Synthesized group row — emitted whenever a path prefix has at least one
+ * track under it. Never stored on the server; the prefix string IS the
+ * identity.
+ */
+export interface TreeGroupRow {
+  kind: 'group';
+  /** Path prefix — e.g. `"robot/arm"`. Also the `id` used for hide/collapse state. */
+  id: string;
+  path: string;
+  /** Resolved label — `groups[prefix].name` if supplied, else path leaf. */
+  name: string;
+  config: GroupConfig;
+  depth: number;
+  hasChildren: boolean;
+  isLast: boolean;
+  ancestorIsLast: boolean[];
+}
+
+export type TreeRow = TreeTrackRow | TreeGroupRow;
+
+interface PrefixInfo {
+  /** The prefix itself, e.g. `"robot/arm"`. */
+  path: string;
+  /** Child paths (tracks or deeper prefixes), in first-appearance order. */
+  childPaths: string[];
 }
 
 /**
- * Depth-first walk skipping collapsed subtrees. Filter: if non-empty, any
- * node whose label matches is kept along with its ancestors and
- * descendants. Search is case-insensitive and substring-based by default;
- * pass `caseSensitive` / `regex` to change interpretation. When a filter
- * is active, `collapsed` is ignored so matches stay reachable.
- *
- * `regex` mode silently falls back to "no matches" on an invalid
- * expression so the UI can render a "bad regex" hint without crashing.
+ * Walk `tracks` once, populating a map of synthesized prefixes + an ordered
+ * list of root children (top-level prefixes and slash-free tracks).
+ */
+function buildStructure(tracks: readonly TrackRow[]): {
+  prefixes: Map<string, PrefixInfo>;
+  rootChildPaths: string[];
+} {
+  const prefixes = new Map<string, PrefixInfo>();
+  const rootSeen = new Set<string>();
+  const rootChildPaths: string[] = [];
+
+  const pushRoot = (p: string) => {
+    if (!rootSeen.has(p)) {
+      rootSeen.add(p);
+      rootChildPaths.push(p);
+    }
+  };
+
+  for (const t of tracks) {
+    const segs = t.path.split('/');
+    if (segs.length === 1) {
+      pushRoot(t.path);
+      continue;
+    }
+
+    let parentPath = '';
+    let acc = '';
+    for (let j = 0; j < segs.length - 1; j++) {
+      acc = acc ? `${acc}/${segs[j]}` : segs[j];
+      if (!prefixes.has(acc)) {
+        prefixes.set(acc, { path: acc, childPaths: [] });
+        if (parentPath) {
+          prefixes.get(parentPath)!.childPaths.push(acc);
+        } else {
+          pushRoot(acc);
+        }
+      }
+      parentPath = acc;
+    }
+    // Track is a leaf under its longest prefix.
+    prefixes.get(parentPath)!.childPaths.push(t.path);
+  }
+
+  return { prefixes, rootChildPaths };
+}
+
+/**
+ * Depth-first flatten. Skips collapsed subtrees. Filter: if non-empty, any
+ * row whose label matches keeps its ancestor prefixes and its descendants
+ * visible. Search is case-insensitive and substring-based by default.
+ * Invalid regex yields an empty match set (no crash).
  */
 export function flattenTree(
-  tracks: readonly TrackConfig[],
+  tracks: readonly TrackRow[],
   options: {
     collapsed?: ReadonlySet<string>;
+    groups?: Record<string, GroupConfig>;
     filter?: string;
     caseSensitive?: boolean;
     regex?: boolean;
   } = {},
 ): TreeRow[] {
   const collapsed = options.collapsed ?? new Set<string>();
+  const groupsCfg = options.groups;
   const rawFilter = options.filter?.trim() ?? '';
-  const children = buildChildren(tracks);
+  const { prefixes, rootChildPaths } = buildStructure(tracks);
+
+  const byPath = new Map<string, TrackRow>();
+  for (const t of tracks) byPath.set(t.path, t);
 
   const matchSet = rawFilter
-    ? computeMatchSet(tracks, rawFilter, options.caseSensitive ?? false, options.regex ?? false)
+    ? computeMatchSet(
+        tracks,
+        prefixes,
+        groupsCfg,
+        rawFilter,
+        options.caseSensitive ?? false,
+        options.regex ?? false,
+      )
     : null;
 
   const rows: TreeRow[] = [];
+
   const walk = (
-    parentId: string | null,
+    childPaths: readonly string[],
     depth: number,
     ancestorIsLast: boolean[],
   ) => {
-    const rawKids = children.get(parentId) ?? [];
-    const kids = matchSet ? rawKids.filter((t) => matchSet.has(t.id)) : rawKids;
-    for (let i = 0; i < kids.length; i++) {
-      const t = kids[i];
-      const isLast = i === kids.length - 1;
-      const hasChildren = (children.get(t.id) ?? []).length > 0;
-      rows.push({ track: t, depth, hasChildren, isLast, ancestorIsLast });
-      const shouldDescend = matchSet ? true : !collapsed.has(t.id);
+    const kept = matchSet ? childPaths.filter((p) => matchSet.has(p)) : childPaths;
+    for (let i = 0; i < kept.length; i++) {
+      const path = kept[i];
+      const isLast = i === kept.length - 1;
+      const track = byPath.get(path);
+      if (track) {
+        rows.push({
+          kind: 'track',
+          id: track.id,
+          track,
+          depth,
+          hasChildren: false,
+          isLast,
+          ancestorIsLast,
+        });
+        continue;
+      }
+      const pi = prefixes.get(path);
+      if (!pi) continue;
+      const cfg = groupsCfg?.[path] ?? {};
+      const leaf = path.split('/').pop() ?? path;
+      const hasChildren = pi.childPaths.length > 0;
+      rows.push({
+        kind: 'group',
+        id: path,
+        path,
+        name: cfg.name ?? leaf,
+        config: cfg,
+        depth,
+        hasChildren,
+        isLast,
+        ancestorIsLast,
+      });
+      // Filter overrides collapse — matches must always be reachable.
+      const shouldDescend = matchSet ? true : !collapsed.has(path);
       if (hasChildren && shouldDescend) {
-        walk(t.id, depth + 1, [...ancestorIsLast, isLast]);
+        walk(pi.childPaths, depth + 1, [...ancestorIsLast, isLast]);
       }
     }
   };
-  walk(null, 0, []);
+
+  walk(rootChildPaths, 0, []);
   return rows;
 }
 
 function computeMatchSet(
-  tracks: readonly TrackConfig[],
+  tracks: readonly TrackRow[],
+  prefixes: ReadonlyMap<string, PrefixInfo>,
+  groups: Readonly<Record<string, GroupConfig>> | undefined,
   filter: string,
   caseSensitive: boolean,
   regex: boolean,
 ): Set<string> {
-  const byId = new Map(tracks.map((t) => [t.id, t]));
-
-  // Build a matcher up front so invalid regex → zero matches without
-  // throwing, and the lowercasing only happens once.
-  let matches: (t: TrackConfig) => boolean;
+  let matches: (label: string) => boolean;
   if (regex) {
     let re: RegExp | null = null;
     try {
@@ -110,75 +211,95 @@ function computeMatchSet(
     } catch {
       re = null;
     }
-    matches = (t) => !!re && re.test(t.name ?? t.id);
+    matches = (label) => !!re && re.test(label);
   } else {
     const needle = caseSensitive ? filter : filter.toLowerCase();
-    matches = (t) => {
-      const label = t.name ?? t.id;
-      return caseSensitive
-        ? label.includes(needle)
-        : label.toLowerCase().includes(needle);
-    };
+    matches = (label) =>
+      caseSensitive ? label.includes(needle) : label.toLowerCase().includes(needle);
   }
 
   const set = new Set<string>();
 
-  // Seed with direct matches, then expand to ancestors and descendants.
+  // 1. Seed: direct label matches.
   for (const t of tracks) {
-    if (matches(t)) set.add(t.id);
+    const leaf = t.path.split('/').pop() ?? t.path;
+    const label = t.name ?? leaf;
+    if (matches(label)) set.add(t.path);
   }
-  // Ancestors of every match.
-  for (const id of [...set]) {
-    let cur = byId.get(id);
-    while (cur && cur.parentId != null) {
-      set.add(cur.parentId);
-      cur = byId.get(cur.parentId);
+  for (const [prefix] of prefixes) {
+    const cfg = groups?.[prefix];
+    const leaf = prefix.split('/').pop() ?? prefix;
+    const label = cfg?.name ?? leaf;
+    if (matches(label)) set.add(prefix);
+  }
+
+  // 2. Ancestors of each match (all proper path prefixes).
+  for (const p of [...set]) {
+    const segs = p.split('/');
+    let acc = '';
+    for (let i = 0; i < segs.length - 1; i++) {
+      acc = acc ? `${acc}/${segs[i]}` : segs[i];
+      set.add(acc);
     }
   }
-  // Descendants of every match.
-  const children = buildChildren(tracks);
-  const addDescendants = (id: string) => {
-    for (const child of children.get(id) ?? []) {
-      if (set.has(child.id)) continue;
-      set.add(child.id);
-      addDescendants(child.id);
+
+  // 3. Descendants of each match — anything whose path is `p/...`.
+  const allPaths: string[] = [];
+  for (const t of tracks) allPaths.push(t.path);
+  for (const [prefix] of prefixes) allPaths.push(prefix);
+  for (const p of [...set]) {
+    for (const cand of allPaths) {
+      if (cand !== p && cand.startsWith(`${p}/`)) set.add(cand);
     }
-  };
-  for (const id of [...set]) addDescendants(id);
+  }
+
   return set;
 }
 
 /**
- * Compute which track ids inherit a "hidden" flag from an ancestor. Used so
- * that toggling a group's visibility dims every descendant lane.
+ * Compute hidden-inheritance for every track + group. A row is "inherited
+ * hidden" when any ancestor prefix is in the `hidden` set. `hidden` holds
+ * track ids AND group prefixes (the two don't overlap because group ids
+ * always contain `/` unless they're top-level, and top-level prefixes are
+ * group-only — a track at a top-level path is not a prefix of anything).
  */
 export function hiddenInheritance(
-  tracks: readonly TrackConfig[],
+  tracks: readonly TrackRow[],
   hidden: ReadonlySet<string>,
 ): Map<string, boolean> {
-  const byId = new Map(tracks.map((t) => [t.id, t]));
-  const memo = new Map<string, boolean>();
-  const check = (id: string): boolean => {
-    const cached = memo.get(id);
+  // Memoize by path — every track and every prefix shares this cache.
+  const { prefixes } = buildStructure(tracks);
+  const pathHidden = new Map<string, boolean>();
+
+  const checkPath = (path: string): boolean => {
+    const cached = pathHidden.get(path);
     if (cached !== undefined) return cached;
-    const t = byId.get(id);
-    if (!t || t.parentId == null) {
-      memo.set(id, false);
+    const segs = path.split('/');
+    if (segs.length === 1) {
+      pathHidden.set(path, false);
       return false;
     }
-    const parentHidden = hidden.has(t.parentId) || check(t.parentId);
-    memo.set(id, parentHidden);
-    return parentHidden;
+    const parent = segs.slice(0, -1).join('/');
+    const result = hidden.has(parent) || checkPath(parent);
+    pathHidden.set(path, result);
+    return result;
   };
-  for (const t of tracks) check(t.id);
-  return memo;
+
+  const out = new Map<string, boolean>();
+  for (const t of tracks) out.set(t.id, checkPath(t.path));
+  for (const [prefix] of prefixes) out.set(prefix, checkPath(prefix));
+  return out;
 }
 
-/** Initial collapsed Set from `expanded: false` on group nodes. */
-export function initialCollapsed(tracks: readonly TrackConfig[]): Set<string> {
+/**
+ * Initial collapsed set derived from `groups[prefix].expanded === false`.
+ */
+export function initialCollapsed(
+  groups?: Record<string, GroupConfig>,
+): Set<string> {
   const s = new Set<string>();
-  for (const t of tracks) {
-    if (t.view === 'Group' && t.expanded === false) s.add(t.id);
+  for (const [prefix, cfg] of Object.entries(groups ?? {})) {
+    if (cfg?.expanded === false) s.add(prefix);
   }
   return s;
 }

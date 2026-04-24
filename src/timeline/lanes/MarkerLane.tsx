@@ -65,7 +65,6 @@ export const MarkerLane: LaneComponent<MarkerLaneProps> = (props) => {
   if (props.src) return <MarkerLaneSrc {...props} src={props.src} />;
   return <MarkerLaneData {...props} data={props.data!} />;
 };
-MarkerLane.__viewName = 'MarkerLane';
 
 function pickColor(color: string | undefined): SemanticColor {
   return isSemanticColor(color) ? color : DEFAULT_COLOR;

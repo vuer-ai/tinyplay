@@ -1,14 +1,16 @@
 import {
   useCallback,
+  useContext,
   useEffect,
   useMemo,
   useRef,
   useState,
 } from 'react';
-import { ClockProvider } from '../react/clock-context';
+import { ClockContext, ClockProvider } from '../react/clock-context';
 import { useTimeline } from '../react/hooks/use-timeline';
-import type { TimelineConfig, TrackConfig } from './types/config';
-import type { LaneRegistry } from './types/lanes';
+import type { TimelineClock } from '../core/timeline';
+import type { TimelineConfig, TrackRow } from './types/config';
+import type { TimelineViews } from '../dtypes/types';
 import { validateTimelineConfig } from './validate';
 import {
   flattenTree,
@@ -31,11 +33,11 @@ import { LaneRows } from './LaneColumn';
 import { useSeekOnPointer } from './use-seek-on-pointer';
 import { useTimelineWheel } from './use-timeline-wheel';
 import { useAutoFollow } from './use-auto-follow';
-import { defaultLaneRegistry } from './lanes/registry';
 
 const RULER_HEIGHT = 32;
 const UNIFORM_ROW_HEIGHT = 32;
 const FALLBACK_ROW_HEIGHT = 40;
+const GROUP_ROW_HEIGHT = 32;
 const MIN_LEFT = 180;
 const MAX_LEFT = 480;
 const DEFAULT_LEFT = 280;
@@ -44,35 +46,49 @@ const OVERSCAN = 6;
 export interface TimelineContainerProps {
   config: TimelineConfig;
   className?: string;
-  registry?: LaneRegistry;
   /**
-   * Fires when the user right-clicks (or uses a long-press equivalent) on a
-   * row — either in the tree column or the lane body. Consumers can use
-   * this to open their own menu UI; the event's `preventDefault()` is
-   * already called for them. Omit to let the browser's default menu show.
+   * Required dtype → lane mapping. Import `defaultTimelineViews` from
+   * `@vuer-ai/vuer-m3u` for the stock wiring, or supply your own.
    */
-  onRowContextMenu?: (track: TrackConfig, e: React.MouseEvent) => void;
+  views: TimelineViews;
+  /**
+   * Optional shared `TimelineClock`. When provided (directly or via an
+   * outer `<ClockProvider>`), the container reuses it instead of creating
+   * its own. Use this to share a clock between a `<TimelineContainer>`
+   * and a `<TrackerContainer>` so play / seek propagates across both.
+   */
+  clock?: TimelineClock | null;
+  /**
+   * Fires when the user right-clicks a track row. `preventDefault()` is
+   * already called; consumers implement their own menu UI. Does not fire
+   * on group rows (groups aren't server-side entities).
+   */
+  onRowContextMenu?: (track: TrackRow, e: React.MouseEvent) => void;
 }
 
 export function TimelineContainer({
   config,
   className,
-  registry,
+  views,
+  clock: clockProp,
   onRowContextMenu,
 }: TimelineContainerProps) {
   validateTimelineConfig(config);
-  const tl = useTimeline(config.container.duration);
-  const mergedRegistry = useMemo<LaneRegistry>(
-    () => (registry ? { ...defaultLaneRegistry, ...registry } : defaultLaneRegistry),
-    [registry],
-  );
+  // Resolve external clock: explicit prop → outer <ClockProvider> → null.
+  // useTimeline adopts it if present, or creates a new internal clock.
+  const ctxClock = useContext(ClockContext);
+  const tl = useTimeline(config.container.duration, clockProp ?? ctxClock);
 
+  // Viewport shares the clock's live duration, not config.container.duration.
+  // Playlists call `clock.extendDuration()` as they load, so the clock can
+  // grow past the configured duration — the viewport must follow or the
+  // playhead falls off the right edge once `t > config.container.duration`.
   return (
     <ClockProvider clock={tl.clock}>
-      <TimelineViewportProvider duration={config.container.duration}>
+      <TimelineViewportProvider duration={tl.state.duration}>
         <TimelineContainerInner
           config={config}
-          registry={mergedRegistry}
+          views={views}
           playing={tl.state.playing}
           duration={tl.state.duration}
           onPlay={tl.play}
@@ -88,19 +104,19 @@ export function TimelineContainer({
 
 interface InnerProps {
   config: TimelineConfig;
-  registry: LaneRegistry;
+  views: TimelineViews;
   playing: boolean;
   duration: number;
   onPlay(): void;
   onPause(): void;
   onSeek(t: number): void;
   className?: string;
-  onRowContextMenu?: (track: TrackConfig, e: React.MouseEvent) => void;
+  onRowContextMenu?: (track: TrackRow, e: React.MouseEvent) => void;
 }
 
 function TimelineContainerInner({
   config,
-  registry,
+  views,
   playing,
   duration,
   onPlay,
@@ -110,9 +126,10 @@ function TimelineContainerInner({
   onRowContextMenu,
 }: InnerProps) {
   const tracks = config.tracks;
+  const groups = config.groups;
 
   const [collapsed, setCollapsed] = useState<Set<string>>(() =>
-    initialCollapsed(tracks),
+    initialCollapsed(groups),
   );
   const [hidden, setHidden] = useState<Set<string>>(() => new Set());
   const [filter, setFilter] = useState('');
@@ -138,26 +155,30 @@ function TimelineContainerInner({
   }, [regex, filter, caseSensitive]);
 
   const rows = useMemo(
-    () => flattenTree(tracks, { collapsed, filter, caseSensitive, regex }),
-    [tracks, collapsed, filter, caseSensitive, regex],
+    () => flattenTree(tracks, { collapsed, groups, filter, caseSensitive, regex }),
+    [tracks, collapsed, groups, filter, caseSensitive, regex],
   );
 
   const { rowLayout, totalHeight } = useMemo(() => {
     let y = 0;
     const layout = rows.map((r) => {
-      const def = registry[r.track.view];
-      const h =
-        rowMode === 'uniform'
-          ? UNIFORM_ROW_HEIGHT
-          : typeof r.track.height === 'number'
-            ? r.track.height
-            : def?.defaultHeight ?? FALLBACK_ROW_HEIGHT;
+      let h: number;
+      if (rowMode === 'uniform') {
+        h = UNIFORM_ROW_HEIGHT;
+      } else if (r.kind === 'group') {
+        h = GROUP_ROW_HEIGHT;
+      } else if (typeof r.track.height === 'number') {
+        h = r.track.height;
+      } else {
+        const entry = views[r.track.dtype];
+        h = entry?.defaultHeight ?? FALLBACK_ROW_HEIGHT;
+      }
       const entry = { y, h };
       y += h;
       return entry;
     });
     return { rowLayout: layout, totalHeight: y };
-  }, [rows, registry, rowMode]);
+  }, [rows, views, rowMode]);
 
   const visibleRange = useMemo<[number, number]>(() => {
     if (rowLayout.length === 0) return [0, 0];
@@ -185,7 +206,7 @@ function TimelineContainerInner({
 
   // Collect snap points from any track with inline `data`. Live-loaded
   // tracks don't contribute (their entries aren't available at render
-  // time); future improvement can plumb them in via a context.
+  // time).
   const snapPoints = useMemo<number[]>(() => {
     const pts = new Set<number>();
     for (const t of tracks) {
@@ -219,9 +240,6 @@ function TimelineContainerInner({
   const scrollerRef = useRef<HTMLDivElement>(null);
   useObservedWidth(laneAreaRef);
 
-  // Shift+click: drop a persistent temporal marker instead of seeking. A
-  // drag that starts off horizontal but becomes mostly vertical is
-  // upgraded to a row-scroll gesture (SyncScroll equivalent).
   const onAddMarker = useCallback((t: number) => {
     setTempMarkers((prev) => [...prev, t]);
   }, []);
@@ -236,28 +254,23 @@ function TimelineContainerInner({
     return false;
   }, []);
   useSeekOnPointer(laneAreaRef, { onShiftClick: onAddMarker, onDragUpgrade });
-  // Vertical-drag pan: once upgraded via onDragUpgrade, follow pointermove
-  // on the window and scroll the row scroller until pointerup.
+
   useEffect(() => {
     const area = laneAreaRef.current;
     if (!area) return;
     let startY = 0;
-    let active = false;
     const onDown = (e: PointerEvent) => {
       if (e.button !== 0 || e.shiftKey) return;
       startY = e.clientY;
-      active = false;
     };
     const onMove = (e: PointerEvent) => {
       if (!dragScrollActive.current) return;
-      active = true;
       const dy = e.clientY - startY;
       const el = scrollerRef.current;
       if (el) el.scrollTop = dragScrollStartTop.current - dy;
     };
     const onUp = () => {
       dragScrollActive.current = false;
-      active = false;
     };
     area.addEventListener('pointerdown', onDown);
     window.addEventListener('pointermove', onMove);
@@ -341,7 +354,7 @@ function TimelineContainerInner({
         {/* TREE SIDE */}
         <div
           style={{ width: leftWidth }}
-          className="shrink-0 flex flex-col border-r border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/60"
+          className="shrink-0 flex flex-col bg-zinc-50/50 dark:bg-zinc-950/60"
           onWheel={onTreeWheel}
         >
           <div
@@ -376,7 +389,7 @@ function TimelineContainerInner({
                 hiddenInherited={hiddenInherited}
                 selected={selected}
                 hovered={hovered}
-                registry={registry}
+                views={views}
                 onToggleCollapsed={toggleCollapsed}
                 onToggleHidden={toggleHidden}
                 onSelect={setSelected}
@@ -387,13 +400,24 @@ function TimelineContainerInner({
           </div>
         </div>
 
+        {/* Resize bar = THE divider between tree and lane. 1 px wide line
+            (no gap on either side), widens to 4 px on hover. Hit area is
+            8 px via an absolute overlay that overflows into the neighbors,
+            so the visible line stays flush while the drag target is
+            generous. `z-30` sits above lane content + Playhead (z-20) so
+            the hover grow (which bleeds ~1.5 px past the 1 px wrapper
+            because of `left-1/2 -translate-x-1/2 w-1`) overlays the lane
+            cleanly instead of being punched through by lane pixels. */}
         <div
-          className="w-1 shrink-0 bg-zinc-200 dark:bg-zinc-800 cursor-col-resize hover:bg-indigo-400/60 transition-colors"
+          className="relative shrink-0 w-px cursor-col-resize group z-30"
           onPointerDown={onResizeStart}
           aria-label="resize tree column"
-        />
+        >
+          <div className="absolute inset-y-0 -left-1 -right-1 z-10" />
+          <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-zinc-200 dark:bg-zinc-800 transition-all duration-100 group-hover:w-1 group-hover:bg-indigo-400/60" />
+        </div>
 
-        {/* LANE SIDE: ruler + rows scroller + cursor/playhead/nav overlays */}
+        {/* LANE SIDE */}
         <div
           ref={laneAreaRef}
           className="relative flex-1 min-w-0 flex flex-col overflow-hidden cursor-crosshair active:cursor-grabbing touch-none"
@@ -411,7 +435,7 @@ function TimelineContainerInner({
               rowLayout={rowLayout}
               visibleRange={visibleRange}
               totalHeight={totalHeight}
-              registry={registry}
+              views={views}
               hiddenDirect={hidden}
               hiddenInherited={hiddenInherited}
               hovered={hovered}
@@ -435,10 +459,8 @@ function TimelineContainerInner({
 }
 
 /**
- * Renders persistent `T1 / T2 / T3…` static cursors at the times the user
- * shift-clicked. Click a marker's readout pill to remove it. Lives inside
- * the viewport provider so percent-conversion is available; rendered in
- * the lane-area layer so the vertical line covers the full height.
+ * Persistent `T1 / T2 / T3…` static cursors at shift-click times. Click
+ * the marker pill to remove it.
  */
 function TemporalMarkerLayer({
   markers,

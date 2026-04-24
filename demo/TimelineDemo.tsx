@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react';
-import { TimelineContainer, type TimelineConfig } from '@vuer-ai/vuer-m3u';
+import {
+  TimelineContainer,
+  defaultTimelineViews,
+  type TimelineConfig,
+} from '@vuer-ai/vuer-m3u';
 
 const BASE = '/timeline/teleop_run_037/';
 
@@ -7,10 +11,6 @@ const BASE = '/timeline/teleop_run_037/';
  * Load the mock `config.json` from the demo publicDir, rewrite each
  * track's relative `src` into an absolute URL the dev server serves, and
  * render the result inside `<TimelineContainer>`.
- *
- * Paths in the generated config are intentionally relative — the host app
- * decides where the episode lives. Here we prepend `/timeline/teleop_run_037/`;
- * a real consumer would prepend the BSS CDN URL for the episode.
  */
 export function TimelineDemo() {
   const [config, setConfig] = useState<TimelineConfig | null>(null);
@@ -30,10 +30,6 @@ export function TimelineDemo() {
           tracks: c.tracks.map((t) => {
             const next = { ...t };
             if (t.src) next.src = BASE + t.src;
-            // Resolve any string URLs inside props that look like relative
-            // paths — covers VideoLane's `thumbnails` VTT, future
-            // `poster`, etc. We keep the whitelist explicit so arbitrary
-            // strings in props aren't accidentally rewritten.
             if (t.props) {
               const nextProps: Record<string, unknown> = { ...t.props };
               for (const key of ['thumbnails', 'poster']) {
@@ -75,7 +71,7 @@ export function TimelineDemo() {
 
   return (
     <div className="p-4">
-      <TimelineContainer config={config} />
+      <TimelineContainer config={config} views={defaultTimelineViews} />
     </div>
   );
 }

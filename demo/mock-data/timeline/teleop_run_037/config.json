@@ -4,48 +4,32 @@
     "name": "teleop_run_037",
     "duration": 30
   },
+  "groups": {
+    "cams":  { "name": "Cameras",     "color": "green",  "icon": "video" },
+    "robot": { "name": "Robot state", "color": "blue",   "icon": "robot" },
+    "narr":  { "name": "Narration",   "color": "purple", "icon": "caption" },
+    "pipe":  { "name": "Pipeline",    "color": "blue",   "icon": "pipeline" }
+  },
   "tracks": [
     {
-      "id": "cams",
-      "parentId": null,
-      "view": "Group",
-      "name": "Cameras",
-      "expanded": true,
-      "color": "green",
-      "icon": "video"
-    },
-    {
       "id": "wrist_cam",
-      "parentId": "cams",
-      "view": "VideoLane",
+      "path": "cams/wrist_cam",
+      "dtype": "video",
       "src": "video/wrist_cam/playlist.m3u8",
-      "name": "wrist_cam",
       "color": "green",
       "props": {
         "thumbnails": "video/wrist_cam/thumbnails.vtt"
       }
     },
     {
-      "id": "robot",
-      "parentId": null,
-      "view": "Group",
-      "name": "Robot state",
-      "expanded": true,
-      "color": "blue",
-      "icon": "robot"
-    },
-    {
       "id": "arm_qpos",
-      "parentId": "robot",
-      "view": "LineChartLane",
+      "path": "robot/arm/qpos",
+      "dtype": "joint_angles",
       "src": "track/arm_qpos/playlist.m3u8",
       "name": "arm / qpos",
       "color": "blue",
       "icon": "waves",
       "props": {
-        "shape": [
-          7
-        ],
         "channelNames": [
           "shoulder_pan",
           "shoulder_lift",
@@ -54,115 +38,43 @@
           "forearm_roll",
           "wrist_flex",
           "wrist_roll"
-        ],
-        "range": [
-          -3.141592653589793,
-          3.141592653589793
-        ],
-        "unit": "rad"
+        ]
       }
     },
     {
-      "id": "narr",
-      "parentId": null,
-      "view": "Group",
-      "name": "Narration",
-      "expanded": true,
-      "color": "purple",
-      "icon": "caption"
-    },
-    {
       "id": "operator",
-      "parentId": "narr",
-      "view": "PillLane",
+      "path": "narr/operator",
+      "dtype": "action_label",
       "src": "text/operator/playlist.m3u8",
-      "name": "operator",
       "color": "purple",
       "icon": "caption"
-    },
-    {
-      "id": "pipe",
-      "parentId": null,
-      "view": "Group",
-      "name": "Pipeline",
-      "expanded": true,
-      "color": "blue",
-      "icon": "pipeline"
     },
     {
       "id": "teleop_run",
-      "parentId": "pipe",
-      "view": "PillLane",
-      "name": "teleop_run",
+      "path": "pipe/teleop_run",
+      "dtype": "ribbon_state",
       "color": "blue",
       "icon": "bot",
       "data": [
-        {
-          "ts": 0.3,
-          "te": 1.2,
-          "color": "green"
-        },
-        {
-          "ts": 1.2,
-          "te": 11.8,
-          "color": "blue",
-          "stripes": true
-        },
-        {
-          "ts": 11.8,
-          "te": 13.4,
-          "halted": true
-        },
-        {
-          "ts": 13.4,
-          "te": 24,
-          "color": "blue"
-        },
-        {
-          "ts": 24,
-          "te": 29.5,
-          "color": "green"
-        }
+        { "ts": 0.3, "te": 1.2, "color": "green" },
+        { "ts": 1.2, "te": 11.8, "color": "blue", "stripes": true },
+        { "ts": 11.8, "te": 13.4, "halted": true },
+        { "ts": 13.4, "te": 24, "color": "blue" },
+        { "ts": 24, "te": 29.5, "color": "green" }
       ]
     },
     {
       "id": "events",
-      "parentId": null,
-      "view": "MarkerLane",
-      "name": "Events",
+      "path": "events",
+      "dtype": "marker_event",
       "color": "purple",
       "icon": "diamond",
       "data": [
-        {
-          "ts": 0.3,
-          "label": "episode start",
-          "kind": "milestone",
-          "color": "purple"
-        },
-        {
-          "ts": 6.8,
-          "label": "grasp",
-          "kind": "action",
-          "color": "green"
-        },
-        {
-          "ts": 11.6,
-          "label": "fault recovered",
-          "kind": "recovery",
-          "color": "orange"
-        },
-        {
-          "ts": 22.2,
-          "label": "release",
-          "kind": "action",
-          "color": "green"
-        },
-        {
-          "ts": 29.4,
-          "label": "episode end",
-          "kind": "milestone",
-          "color": "purple"
-        }
+        { "ts": 0.3, "label": "episode start", "kind": "milestone", "color": "purple" },
+        { "ts": 6.8, "label": "grasp", "kind": "action", "color": "green" },
+        { "ts": 11.6, "label": "fault recovered", "kind": "recovery", "color": "orange" },
+        { "ts": 22.2, "label": "release", "kind": "action", "color": "green" },
+        { "ts": 29.4, "label": "episode end", "kind": "milestone", "color": "purple" }
       ]
     }
   ]

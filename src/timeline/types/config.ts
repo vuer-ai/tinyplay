@@ -1,12 +1,19 @@
 /**
- * Serializable display config. This is the canonical form a
- * `<TimelineContainer>` consumes — both the JSX composition path and the
- * config-hydration path resolve into this shape before rendering.
+ * Serializable display config consumed by `<TimelineContainer>`.
  *
- * All fields must JSON-serialize round-trip. `normalize` functions from
- * lane props intentionally have no slot here; use the JSX path when a
- * custom decoder is needed.
+ * Two shapes:
+ *   - `TrackRow` mirrors the server-side `Track` record (id, name, path,
+ *     dtype, src/data + a handful of client-only presentation overrides).
+ *   - `GroupConfig` carries *overrides* for a group — not a full row.
+ *     Groups are synthesized client-side from `/`-separated path prefixes;
+ *     their id IS the prefix. Supply an override to rename or style one.
+ *
+ * This split matches the server: tracks are stored, groups exist only for
+ * visualization. Hierarchy comes from `path` (e.g. `"robot/joint_angles"`),
+ * not from `parentId` references — matching `dreamlake-server`'s schema.
  */
+
+import type { DtypeId, GroupConfig } from '../../dtypes/types';
 
 export interface TimelineMeta {
   id: string;
@@ -22,44 +29,58 @@ export interface TimelineMeta {
 }
 
 /**
- * One row in the timeline. Exactly one of `src` or `data` must be provided
- * — runtime validated. `view` names a component in the LaneRegistry.
+ * One data row in the timeline. Exactly one of `src` or `data` must be
+ * provided — runtime validated. `dtype` names a key in the dtype registry
+ * and in the `<TimelineContainer views>` map.
  */
-export interface TrackConfig {
-  /** Required. Used as React key; never auto-slugified. */
+export interface TrackRow {
+  /** Stable identifier — React key. */
   id: string;
-  /** Registry key — 'VideoLane', 'LineChartLane', 'Group', etc. */
-  view: string;
   /**
-   * Parent node id in the tree. `null` / undefined means the node is at the
-   * root. Any track (including group nodes) can be nested under any other
-   * group — there is no depth limit.
+   * Hierarchy + position in the tree. Uses `/` separators, e.g.
+   * `"cams/wrist_cam"` or `"robot/arm/qpos"`. Prefixes of a path become
+   * synthesized group rows; style them via `TimelineConfig.groups`.
+   * Root tracks (no slash) render at the top level.
    */
-  parentId?: string | null;
-  /**
-   * For `view: 'Group'` nodes: initial expanded state. Defaults to `true`
-   * (open). Ignored for leaf tracks.
-   */
-  expanded?: boolean;
-  /** m3u8 URL. Groups have neither src nor data. */
+  path: string;
+  /** Registered data dtype — e.g. `'video'`, `'joint_angles'`, `'action_label'`. */
+  dtype: DtypeId;
+  /** m3u8 playlist URL. Mutually exclusive with `data`. */
   src?: string;
-  /** Inline data. Shape determined by the chosen `view`. */
+  /** Inline data; shape determined by the dtype. Mutually exclusive with `src`. */
   data?: unknown[];
+  /** Tree-label override. Defaults to the last segment of `path`. */
   name?: string;
-  /** Default true. Hidden tracks skip data loading (renders dimmed). */
+  /** Hidden tracks skip data loading and render dimmed. Default true. */
   visible?: boolean;
+  /** Row height in px; overrides the dtype / view defaults. */
   height?: number;
   color?: string;
   icon?: string;
-  /** Schema-reserved; v0 renderer ignores. */
-  offset?: number;
-  /** Schema-reserved; v0 renderer ignores. */
-  duration?: number;
-  /** Forwarded as-is to the lane component (shape, channelNames, etc.). */
+  /**
+   * Per-track lane-prop overrides. Merged on top of the dtype's `defaults`
+   * — track props always win. Use for episode-specific tuning such as
+   * `channelNames` on a joint_angles track.
+   */
   props?: Record<string, unknown>;
 }
 
 export interface TimelineConfig {
   container: TimelineMeta;
-  tracks: TrackConfig[];
+  tracks: TrackRow[];
+  /**
+   * Optional per-group presentation overrides, keyed by path prefix.
+   * Prefixes that appear in track paths but have no entry here use default
+   * styling (path-leaf as label, no icon, expanded = true).
+   *
+   *   groups: {
+   *     "cams":     { name: "Cameras",     color: "green" },
+   *     "robot":    { name: "Robot state", color: "blue"  },
+   *     "robot/arm":{ icon: "arm" },        // overrides a nested group
+   *   }
+   */
+  groups?: Record<string, GroupConfig>;
 }
+
+/** Re-export so callers can `import type { GroupConfig } from '@vuer-ai/vuer-m3u'`. */
+export type { GroupConfig } from '../../dtypes/types';

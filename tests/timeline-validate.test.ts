@@ -1,10 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import {
   assertSrcOrData,
-  validateTrackConfig,
+  validateTrackRow,
   validateTimelineConfig,
 } from '../src/timeline/validate';
-import type { TrackConfig, TimelineConfig } from '../src/timeline/types/config';
+import type { TrackRow, TimelineConfig } from '../src/timeline/types/config';
+
+// Built-in dtypes auto-register via `import '@vuer-ai/vuer-m3u/dtypes'` side
+// effect. Importing the validate module (which imports the registry) is
+// enough because src/dtypes/index.ts runs the registration loop at load.
+import '../src/dtypes';
 
 describe('assertSrcOrData', () => {
   it('accepts src alone', () => {
@@ -28,46 +33,80 @@ describe('assertSrcOrData', () => {
   });
 
   it('includes context in error message', () => {
-    expect(() => assertSrcOrData({}, 'TrackConfig "foo"')).toThrow(
-      /TrackConfig "foo"/,
+    expect(() => assertSrcOrData({}, 'TrackRow "foo"')).toThrow(
+      /TrackRow "foo"/,
     );
   });
 });
 
-describe('validateTrackConfig', () => {
-  const base: TrackConfig = { id: 'a', view: 'VideoLane', src: '/a.m3u8' };
+describe('validateTrackRow', () => {
+  const base: TrackRow = {
+    id: 'a',
+    path: 'cam/wrist',
+    dtype: 'video',
+    src: '/a.m3u8',
+  };
 
   it('accepts a valid src-based track', () => {
-    expect(() => validateTrackConfig(base)).not.toThrow();
+    expect(() => validateTrackRow(base)).not.toThrow();
   });
 
   it('accepts a valid data-based track', () => {
     expect(() =>
-      validateTrackConfig({ id: 'a', view: 'MarkerLane', data: [{ ts: 0 }] }),
+      validateTrackRow({
+        id: 'm',
+        path: 'events',
+        dtype: 'marker_event',
+        data: [{ ts: 0 }],
+      }),
     ).not.toThrow();
   });
 
   it('rejects missing id', () => {
     expect(() =>
-      validateTrackConfig({ ...base, id: '' } as TrackConfig),
+      validateTrackRow({ ...base, id: '' } as TrackRow),
     ).toThrow(/requires a non-empty `id`/);
   });
 
-  it('rejects missing view', () => {
+  it('rejects missing path', () => {
     expect(() =>
-      validateTrackConfig({ ...base, view: '' } as TrackConfig),
-    ).toThrow(/missing `view`/);
+      validateTrackRow({ ...base, path: '' } as unknown as TrackRow),
+    ).toThrow(/`path` must be a non-empty string/);
+  });
+
+  it('rejects path with leading slash', () => {
+    expect(() => validateTrackRow({ ...base, path: '/a/b' })).toThrow(
+      /must not start or end with '\/'/,
+    );
+  });
+
+  it('rejects path with empty segment', () => {
+    expect(() => validateTrackRow({ ...base, path: 'a//b' })).toThrow(
+      /must not start or end with '\/' and must not contain empty segments/,
+    );
+  });
+
+  it('rejects missing dtype', () => {
+    expect(() =>
+      validateTrackRow({ ...base, dtype: '' } as TrackRow),
+    ).toThrow(/missing `dtype`/);
+  });
+
+  it('rejects unknown dtype', () => {
+    expect(() =>
+      validateTrackRow({ ...base, dtype: 'totally_fake' }),
+    ).toThrow(/dtype "totally_fake" is not registered/);
   });
 
   it('rejects both src and data', () => {
     expect(() =>
-      validateTrackConfig({ ...base, data: [] }),
+      validateTrackRow({ ...base, data: [] }),
     ).toThrow(/not both/);
   });
 });
 
 describe('validateTimelineConfig', () => {
-  const mk = (tracks: TrackConfig[]): TimelineConfig => ({
+  const mk = (tracks: TrackRow[]): TimelineConfig => ({
     container: { id: 'ep', duration: 30 },
     tracks,
   });
@@ -76,8 +115,8 @@ describe('validateTimelineConfig', () => {
     expect(() =>
       validateTimelineConfig(
         mk([
-          { id: 'a', view: 'VideoLane', src: '/a.m3u8' },
-          { id: 'b', view: 'MarkerLane', data: [{ ts: 0 }] },
+          { id: 'a', path: 'cam/wrist', dtype: 'video', src: '/a.m3u8' },
+          { id: 'b', path: 'events', dtype: 'marker_event', data: [{ ts: 0 }] },
         ]),
       ),
     ).not.toThrow();
@@ -87,11 +126,22 @@ describe('validateTimelineConfig', () => {
     expect(() =>
       validateTimelineConfig(
         mk([
-          { id: 'a', view: 'VideoLane', src: '/a.m3u8' },
-          { id: 'a', view: 'MarkerLane', data: [] },
+          { id: 'a', path: 'cam/wrist', dtype: 'video', src: '/a.m3u8' },
+          { id: 'a', path: 'cam/scene', dtype: 'video', src: '/b.m3u8' },
         ]),
       ),
     ).toThrow(/Duplicate track id "a"/);
+  });
+
+  it('rejects duplicate paths', () => {
+    expect(() =>
+      validateTimelineConfig(
+        mk([
+          { id: 'a', path: 'cam/wrist', dtype: 'video', src: '/a.m3u8' },
+          { id: 'b', path: 'cam/wrist', dtype: 'video', src: '/b.m3u8' },
+        ]),
+      ),
+    ).toThrow(/Duplicate track path "cam\/wrist"/);
   });
 
   it('rejects non-positive duration', () => {

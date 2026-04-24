@@ -1,7 +1,13 @@
 import { createContext, useContext, type ReactNode } from 'react';
 import type { TimelineClock } from '../core/timeline';
 
-const ClockContext = createContext<TimelineClock | null>(null);
+/**
+ * Raw context — exported so container components can peek with
+ * `useContext(ClockContext)` to detect whether a clock is available
+ * without throwing. Prefer `useClockContext` for code that needs the
+ * resolved clock.
+ */
+export const ClockContext = createContext<TimelineClock | null>(null);
 
 export interface ClockProviderProps {
   clock: TimelineClock;

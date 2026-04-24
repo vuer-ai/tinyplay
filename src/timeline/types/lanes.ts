@@ -2,28 +2,36 @@
  * Lane component prop types.
  *
  * Lanes are classified by *display pattern*, not by business meaning. The
- * seven core primitives below render every track shape in the teleop_run_037
- * screenshot. Business names (`QposLane`, `EventLane`, `NarrationLane`, etc.)
- * are one-line recipe wrappers around these primitives — ship them as demo
- * examples, not as core API surface.
+ * seven primitives below render every row shape in the teleop_run_037
+ * reference. Business names (`QposLane`, `EventLane`, `NarrationLane`) are
+ * one-line recipe wrappers — ship them as demo examples, not core API.
  *
  * Data contract: each lane declares the data shape it expects via
  * `LaneDataProps<T>`. `src` and `data` are mutually exclusive; exactly one
  * must be provided. `normalize` is JSX-only (not serializable into
  * TimelineConfig).
+ *
+ * Dispatch at `<TimelineContainer>` is keyed on a `DtypeId`, not a lane
+ * component name. See `../../dtypes/types.ts` for `TimelineViews` /
+ * `TimelineViewEntry`.
  */
 
 import type { FC } from 'react';
 import type { Sample, AnnotationEntry } from './data';
+import type { DtypeSpec } from '../../dtypes/types';
+import type { TreeRow } from '../tree';
 
 // ---------------------------------------------------------------------------
 // Base mixins
 
 /** Visual / identity fields shared by every lane. */
 export interface LaneVisualProps {
-  /** Stable identifier — if omitted, the outer TrackConfig supplies it. */
+  /** Stable identifier — supplied by the outer `TrackRow.id`. */
   id?: string;
+  /** Tree-label — supplied by `TrackRow.name` or the path-leaf fallback. */
   name?: string;
+  /** Track path — injected by `TimelineContainer` so lanes can introspect. */
+  path?: string;
   height?: number;
   /** Hidden lanes skip data loading. Default true. */
   visible?: boolean;
@@ -31,6 +39,9 @@ export interface LaneVisualProps {
   color?: string;
   /** Tree-row icon (lucide icon name or URL). */
   icon?: string;
+  /** Dtype spec — injected by `TimelineContainer`. Lanes may introspect
+   *  (e.g. defaults) or ignore it. */
+  dtype?: DtypeSpec;
 }
 
 /**
@@ -117,64 +128,30 @@ export interface RibbonLaneProps
 }
 
 // ---------------------------------------------------------------------------
-// Registry
+// Tree cell + lane component types
 
 /**
- * Props a TreeCell component receives. TreeCells render the left-side row
- * for one track; per-view overrides are supplied through `LaneDefinition`.
+ * Props a `TreeCell` receives. The row is either a data track or a
+ * synthesized group (`row.kind` discriminates). Per-view overrides are
+ * supplied via `TimelineViewEntry.treeCell`.
  */
 export interface TreeCellProps {
-  track: import('./config').TrackConfig;
-  depth: number;
-  hasChildren: boolean;
+  row: TreeRow;
   expanded: boolean;
   selected: boolean;
   hovered: boolean;
   hiddenDirect: boolean;
   hiddenInherited: boolean;
   height: number;
+  /** Resolved icon — TrackRow.icon / GroupConfig.icon / TimelineViewEntry.icon. */
   icon?: string;
-  /** True when this row is the last child of its parent in the visible tree. */
-  isLast?: boolean;
-  /** Per-ancestor last-child flags, from root down. Drives guide-line painting. */
-  ancestorIsLast?: boolean[];
   onToggleExpanded(): void;
   onToggleHidden(): void;
 }
 
 /**
- * One entry in the lane registry.
- *
- * `lane` is the right-side renderer (required). `treeCell` is an optional
- * override for the left-side row — most lanes use the default cell.
- * `icon` selects an icon name for the default cell; `defaultHeight` sets
- * the row height when `TrackConfig.height` is absent.
+ * A lane component. Just `FC<P>` — no static `__viewName` any longer
+ * (dispatch goes through the `views` map keyed on dtype, not on component
+ * identity).
  */
-export interface LaneDefinition {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  lane: FC<any>;
-  treeCell?: FC<TreeCellProps>;
-  /** Icon name for the default tree cell. */
-  icon?: string;
-  /** Default row height in px when the track has no explicit `height`. */
-  defaultHeight?: number;
-}
-
-/**
- * Lookup map: view-name string → lane definition. TimelineContainer reads
- * `TrackConfig.view` and dispatches through this registry. Recipe
- * wrappers and custom lanes register under their own keys; unknown views
- * fall through to `PlaceholderLane`.
- */
-export type LaneRegistry = Record<string, LaneDefinition>;
-
-/**
- * Static field a lane component exposes so the JSX walker in
- * `<TimelineContainer>` can recover its registry name from a React element
- * without round-tripping through the registry.
- *
- *   (VideoLane as LaneComponent).__viewName === 'VideoLane'
- */
-export interface LaneComponent<P = unknown> extends FC<P> {
-  __viewName?: string;
-}
+export type LaneComponent<P = unknown> = FC<P>;

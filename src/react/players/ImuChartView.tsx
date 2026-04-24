@@ -3,6 +3,7 @@ import { usePlaylist } from '../hooks/use-playlist';
 import { useMergedTrack } from '../hooks/use-merged-track';
 import { useClockContext } from '../clock-context';
 import type { TimelineClock } from '../../core/timeline';
+import type { DtypeRef } from './dtype-helpers';
 import type { TrackSamples } from '../../core/types';
 
 /**
@@ -19,6 +20,8 @@ export interface ImuSample {
 export interface ImuChartViewProps {
   src: string;
   clock?: TimelineClock | null;
+  /** Optional dtype id or spec. Informational — passed by `<TrackerContainer>` during dispatch. */
+  dtype?: DtypeRef;
   className?: string;
   /** Rolling window width in seconds. Defaults to 5. */
   window?: number;

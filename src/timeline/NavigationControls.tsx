@@ -61,11 +61,8 @@ export function NavigationControls({ panStep = 0.1 }: NavigationControlsProps) {
   );
 
   return (
-    <div
-      className="sticky bottom-3 z-30 mx-auto w-fit"
-      style={{ left: '50%' }}
-    >
-      <div className="flex items-center gap-1 rounded-full p-1 text-xs font-mono tabular-nums backdrop-blur-[5px] border border-white/60 dark:border-zinc-700/50 shadow-[0_4px_16px_0_rgba(0,0,0,0.12)] dark:shadow-[0_4px_16px_0_rgba(0,0,0,0.4)] bg-[linear-gradient(147.1deg,rgba(246,246,246,0.72)_0%,rgba(232,232,232,0.68)_100%)] dark:bg-[linear-gradient(147.1deg,rgba(50,50,50,0.72)_0%,rgba(70,70,70,0.68)_100%)]">
+    <div className="pointer-events-none absolute bottom-3 left-0 right-0 z-30 flex justify-center">
+      <div className="pointer-events-auto flex items-center gap-1 rounded-full p-1 text-xs font-mono tabular-nums backdrop-blur-[5px] border border-white/60 dark:border-zinc-700/50 shadow-[0_4px_16px_0_rgba(0,0,0,0.12)] dark:shadow-[0_4px_16px_0_rgba(0,0,0,0.4)] bg-[linear-gradient(147.1deg,rgba(246,246,246,0.72)_0%,rgba(232,232,232,0.68)_100%)] dark:bg-[linear-gradient(147.1deg,rgba(50,50,50,0.72)_0%,rgba(70,70,70,0.68)_100%)]">
         <button
           type="button"
           onClick={() => panBy('left')}

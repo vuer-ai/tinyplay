@@ -4,10 +4,13 @@ import { useTrackSample } from '../hooks/use-track-sample';
 import { useClockValue } from '../hooks/use-clock-value';
 import { useClockContext } from '../clock-context';
 import type { TimelineClock } from '../../core/timeline';
+import type { DtypeRef } from './dtype-helpers';
 
 export interface ImuGizmoViewProps {
   src: string;
   clock?: TimelineClock | null;
+  /** Optional dtype id or spec. Informational — passed by `<TrackerContainer>` during dispatch. */
+  dtype?: DtypeRef;
   className?: string;
   /** Display fps. Defaults to 30. */
   fps?: number;

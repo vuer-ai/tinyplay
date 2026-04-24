@@ -174,7 +174,6 @@ export const LineChartLane: LaneComponent<LineChartLaneProps> = (props) => {
   if (props.src) return <LineChartLaneSrc {...props} src={props.src} />;
   return <LineChartLaneData {...props} data={props.data!} />;
 };
-LineChartLane.__viewName = 'LineChartLane';
 
 function LineChartLaneSrc({
   src,
