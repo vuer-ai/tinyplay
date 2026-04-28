@@ -103,9 +103,9 @@ export function PoseView({
   const yaw = orientation ? yawFromQuat(orientation) : 0;
 
   return (
-    <div className={`bg-zinc-900 text-zinc-100 text-xs font-mono ${className ?? ''}`}>
-      <div className="px-3 py-1.5 flex gap-4 border-b border-zinc-800 text-[10px]">
-        <span className="text-zinc-400">Pose @ {time.toFixed(2)}s</span>
+    <div className={`bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 text-xs font-mono ${className ?? ''}`}>
+      <div className="px-3 py-1.5 flex gap-4 border-b border-zinc-200 dark:border-zinc-800 text-[10px]">
+        <span className="text-zinc-600 dark:text-zinc-400">Pose @ {time.toFixed(2)}s</span>
         <span className="ml-auto flex gap-3">
           <LegendSwatch color="#ef4444" label="+X" />
           <LegendSwatch color="#22c55e" label="+Y" />
@@ -113,7 +113,7 @@ export function PoseView({
         </span>
       </div>
       <div className="grid grid-cols-2" style={{ minHeight: 260 }}>
-        <div className="border-r border-zinc-800 flex items-center justify-center p-3">
+        <div className="border-r border-zinc-200 dark:border-zinc-800 flex items-center justify-center p-3">
           <OrientationCube q={orientation} />
         </div>
         <TopDownGrid
@@ -125,21 +125,21 @@ export function PoseView({
           yaw={yaw}
         />
       </div>
-      <div className="px-3 py-2 border-t border-zinc-800 grid grid-cols-2 gap-x-6 gap-y-0.5 text-[11px]">
+      <div className="px-3 py-2 border-t border-zinc-200 dark:border-zinc-800 grid grid-cols-2 gap-x-6 gap-y-0.5 text-[11px]">
         <div className="space-y-0.5">
-          <div className="text-zinc-400">position (m)</div>
+          <div className="text-zinc-600 dark:text-zinc-400">position (m)</div>
           {(['x', 'y', 'z'] as const).map((l, i) => (
             <div key={l} className="flex justify-between">
-              <span className="text-zinc-500">{l}</span>
+              <span className="text-zinc-500 dark:text-zinc-500">{l}</span>
               <span className="tabular-nums">{position ? position[i].toFixed(3) : '—'}</span>
             </div>
           ))}
         </div>
         <div className="space-y-0.5">
-          <div className="text-zinc-400">orientation (xyzw)</div>
+          <div className="text-zinc-600 dark:text-zinc-400">orientation (xyzw)</div>
           {(['qx', 'qy', 'qz', 'qw'] as const).map((l, i) => (
             <div key={l} className="flex justify-between">
-              <span className="text-zinc-500">{l}</span>
+              <span className="text-zinc-500 dark:text-zinc-500">{l}</span>
               <span className="tabular-nums">{orientation ? orientation[i].toFixed(3) : '—'}</span>
             </div>
           ))}
@@ -155,7 +155,7 @@ function LegendSwatch({ color, label }: { color: string; label: string }) {
   return (
     <span className="flex items-center gap-1">
       <span className="w-2 h-2 rounded-sm" style={{ background: color }} />
-      <span className="text-zinc-500">{label}</span>
+      <span className="text-zinc-500 dark:text-zinc-500">{label}</span>
     </span>
   );
 }
@@ -206,7 +206,7 @@ function OrientationCube({ q }: { q: Float32Array | null }) {
   return (
     <svg viewBox="-120 -120 240 240" width="220" height="220" role="img" aria-label="Orientation cube">
       {/* Ghost floor */}
-      <g stroke="#27272a" strokeWidth={1} fill="none">
+      <g className="stroke-zinc-300 dark:stroke-zinc-800" strokeWidth={1} fill="none">
         <line x1={-100} y1={0} x2={100} y2={0} />
         <line x1={0} y1={-100} x2={0} y2={100} />
         <circle r={100} />
@@ -216,7 +216,13 @@ function OrientationCube({ q }: { q: Float32Array | null }) {
         const [cx, cy] = faceCenter(projected, f.idx);
         return (
           <g key={f.label}>
-            <polygon points={points} fill={f.color} stroke="#18181b" strokeWidth={1} strokeLinejoin="round" />
+            <polygon
+              points={points}
+              fill={f.color}
+              className="stroke-white dark:stroke-zinc-900"
+              strokeWidth={1}
+              strokeLinejoin="round"
+            />
             <text
               x={cx}
               y={cy + 3}
@@ -333,7 +339,7 @@ function TopDownGrid({
     <div className="relative flex-1">
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" style={{ maxHeight: 260 }}>
         {/* Grid */}
-        <g stroke="#27272a" strokeWidth={1}>
+        <g className="stroke-zinc-200 dark:stroke-zinc-800" strokeWidth={1}>
           {[0.25, 0.5, 0.75].map((f) => (
             <g key={f}>
               <line x1={W * f} y1={0} x2={W * f} y2={H} />
@@ -341,7 +347,7 @@ function TopDownGrid({
             </g>
           ))}
         </g>
-        <g stroke="#3f3f46" strokeWidth={1}>
+        <g className="stroke-zinc-400 dark:stroke-zinc-700" strokeWidth={1}>
           <line x1={W / 2} y1={0} x2={W / 2} y2={H} />
           <line x1={0} y1={H / 2} x2={W} y2={H / 2} />
         </g>
@@ -350,26 +356,31 @@ function TopDownGrid({
         {/* Yaw-aware marker — triangle */}
         {x != null && y != null && (
           <g transform={`translate(${scaleX(x).toFixed(1)} ${scaleY(y).toFixed(1)}) rotate(${-yaw * 180 / Math.PI})`}>
-            <polygon points="11,0 -7,-6 -7,6" fill="#facc15" stroke="#18181b" strokeWidth={1} />
+            <polygon
+              points="11,0 -7,-6 -7,6"
+              fill="#facc15"
+              className="stroke-white dark:stroke-zinc-900"
+              strokeWidth={1}
+            />
             <circle r={14} fill="none" stroke="#facc15" strokeWidth={1} opacity={0.4} />
           </g>
         )}
         {/* Extent label */}
-        <text x={6} y={12} fill="#71717a" fontSize={9}>±{extent.toFixed(1)} m (xy) · ↑ = heading</text>
+        <text x={6} y={12} className="fill-zinc-500 dark:fill-zinc-500" fontSize={9}>±{extent.toFixed(1)} m (xy) · ↑ = heading</text>
       </svg>
       {/* Z altitude bar */}
       {z != null && (
-        <div className="absolute top-2 right-2 bottom-2 w-1.5 bg-zinc-800 rounded">
+        <div className="absolute top-2 right-2 bottom-2 w-1.5 bg-zinc-200 dark:bg-zinc-800 rounded">
           <div
-            className="absolute left-0 right-0 bg-blue-400 rounded"
+            className="absolute left-0 right-0 bg-blue-500 dark:bg-blue-400 rounded"
             style={{
               top: '50%',
               height: Math.min(50, Math.abs(z / extent) * 50) + '%',
               transform: z >= 0 ? 'translateY(-100%)' : 'translateY(0)',
             }}
           />
-          <div className="absolute -left-6 top-0 text-zinc-500 text-[9px]">+z</div>
-          <div className="absolute -left-6 bottom-0 text-zinc-500 text-[9px]">-z</div>
+          <div className="absolute -left-6 top-0 text-zinc-500 dark:text-zinc-500 text-[9px]">+z</div>
+          <div className="absolute -left-6 bottom-0 text-zinc-500 dark:text-zinc-500 text-[9px]">-z</div>
         </div>
       )}
     </div>

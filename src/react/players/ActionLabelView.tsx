@@ -71,10 +71,10 @@ export function ActionLabelView({ src, clock, className, fps = 10 }: ActionLabel
   const active = useMemo(() => list.filter((e) => time >= e.ts && time < e.te), [list, time]);
 
   return (
-    <div className={`bg-zinc-900 text-zinc-100 text-xs font-mono ${className ?? ''}`}>
-      <div className="px-3 py-1.5 flex items-center gap-3 border-b border-zinc-800 text-[10px]">
-        <span className="text-zinc-400">Actions @ {time.toFixed(2)}s</span>
-        <span className="text-zinc-500">
+    <div className={`bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 text-xs font-mono ${className ?? ''}`}>
+      <div className="px-3 py-1.5 flex items-center gap-3 border-b border-zinc-200 dark:border-zinc-800 text-[10px]">
+        <span className="text-zinc-600 dark:text-zinc-400">Actions @ {time.toFixed(2)}s</span>
+        <span className="text-zinc-500 dark:text-zinc-500">
           segment {segment ? `#${segment.index}` : '—'} · {list.length} events
         </span>
         {active.length > 0 && (
@@ -83,7 +83,7 @@ export function ActionLabelView({ src, clock, className, fps = 10 }: ActionLabel
               className="w-2 h-2 rounded-full"
               style={{ background: colorForLabel(active[0].label) }}
             />
-            <span className="text-zinc-100">{active.map((e) => e.label).join(' · ')}</span>
+            <span className="text-zinc-900 dark:text-zinc-100">{active.map((e) => e.label).join(' · ')}</span>
           </span>
         )}
       </div>
@@ -101,7 +101,7 @@ export function ActionLabelView({ src, clock, className, fps = 10 }: ActionLabel
 
       {/* Event list for the current chunk */}
       <ul className="px-3 pb-3 space-y-0.5 max-h-40 overflow-auto">
-        {list.length === 0 && <li className="text-zinc-500">no events in this segment</li>}
+        {list.length === 0 && <li className="text-zinc-500 dark:text-zinc-500">no events in this segment</li>}
         {list.map((e, i) => {
           const isActive = time >= e.ts && time < e.te;
           const color = colorForLabel(e.label);
@@ -109,12 +109,14 @@ export function ActionLabelView({ src, clock, className, fps = 10 }: ActionLabel
             <li
               key={i}
               className={`px-2 py-1 rounded flex items-center gap-2 ${
-                isActive ? 'bg-zinc-800/80 text-zinc-100' : 'text-zinc-400'
+                isActive
+                  ? 'bg-zinc-100 dark:bg-zinc-800/80 text-zinc-900 dark:text-zinc-100'
+                  : 'text-zinc-600 dark:text-zinc-400'
               }`}
             >
               <span className="w-1.5 h-4 rounded-sm" style={{ background: color }} />
               <span className="flex-1 truncate">{e.label}</span>
-              <span className="tabular-nums text-zinc-500">
+              <span className="tabular-nums text-zinc-500 dark:text-zinc-500">
                 {e.ts.toFixed(2)}–{e.te.toFixed(2)}s
               </span>
             </li>
@@ -145,7 +147,7 @@ function Ribbon({
   const t2x = (t: number) => (total > 0 ? (t / total) * W : 0);
 
   if (total === 0) {
-    return <div className="text-zinc-500">loading playlist…</div>;
+    return <div className="text-zinc-500 dark:text-zinc-500">loading playlist…</div>;
   }
 
   const playheadX = t2x(time);
@@ -160,7 +162,11 @@ function Ribbon({
           y={12}
           width={t2x(s.endTime) - t2x(s.startTime) - 1}
           height={24}
-          fill={s.index === activeSegment ? '#27272a' : '#18181b'}
+          className={
+            s.index === activeSegment
+              ? 'fill-zinc-200 dark:fill-zinc-800'
+              : 'fill-zinc-100 dark:fill-zinc-950'
+          }
           rx={2}
         />
       ))}
@@ -173,7 +179,7 @@ function Ribbon({
           y1={8}
           x2={t2x(s.startTime)}
           y2={H - 4}
-          stroke="#3f3f46"
+          className="stroke-zinc-300 dark:stroke-zinc-700"
           strokeWidth={1}
         />
       ))}

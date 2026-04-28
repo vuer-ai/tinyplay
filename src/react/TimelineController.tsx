@@ -85,7 +85,7 @@ export function TimelineController({
       {/* Scrubber track */}
       <div
         ref={trackRef}
-        className="relative h-2 bg-zinc-700 rounded-full cursor-pointer group mb-3"
+        className="relative h-2 bg-zinc-200 dark:bg-zinc-700 rounded-full cursor-pointer group mb-3"
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
@@ -104,19 +104,19 @@ export function TimelineController({
         ))}
 
         <div
-          className="absolute top-0 left-0 h-full bg-white/90 rounded-full"
+          className="absolute top-0 left-0 h-full bg-zinc-900/90 dark:bg-white/90 rounded-full"
           style={{ width: `${progress}%` }}
         />
 
         <div
-          className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white rounded-full shadow-md
+          className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-zinc-900 dark:bg-white rounded-full shadow-md
                      transition-transform group-hover:scale-125"
           style={{ left: `calc(${progress}% - 7px)` }}
         />
 
         {hoverTime !== null && !isScrubbing && (
           <div
-            className="absolute -top-8 -translate-x-1/2 bg-zinc-800 px-2 py-0.5 rounded text-xs text-zinc-200 whitespace-nowrap"
+            className="absolute -top-8 -translate-x-1/2 bg-zinc-200 dark:bg-zinc-800 px-2 py-0.5 rounded text-xs text-zinc-800 dark:text-zinc-200 whitespace-nowrap"
             style={{ left: `${(hoverTime / state.duration) * 100}%` }}
           >
             {formatTime(hoverTime)}
@@ -129,7 +129,7 @@ export function TimelineController({
         <div className="flex items-center gap-3">
           <button
             onClick={state.playing ? onPause : onPlay}
-            className="text-zinc-300 hover:text-white transition-colors"
+            className="text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white transition-colors"
           >
             {state.playing ? (
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -146,7 +146,9 @@ export function TimelineController({
             <button
               onClick={() => onLoopChange(!state.loop)}
               className={`transition-colors ${
-                state.loop ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
+                state.loop
+                  ? 'text-zinc-900 dark:text-white'
+                  : 'text-zinc-500 hover:text-zinc-700 dark:text-zinc-500 dark:hover:text-zinc-300'
               }`}
               title={state.loop ? 'Loop on' : 'Loop off'}
             >
@@ -156,7 +158,7 @@ export function TimelineController({
             </button>
           )}
 
-          <span className="font-mono text-zinc-400 text-xs">
+          <span className="font-mono text-zinc-600 dark:text-zinc-400 text-xs">
             {formatTime(currentTime)} / {formatTime(state.duration)}
           </span>
         </div>
@@ -168,8 +170,8 @@ export function TimelineController({
               onClick={() => onSpeedChange(rate)}
               className={`px-1.5 py-0.5 rounded text-xs transition-colors ${
                 state.playbackRate === rate
-                  ? 'bg-white text-zinc-900 font-medium'
-                  : 'text-zinc-400 hover:text-zinc-200'
+                  ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 font-medium'
+                  : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200'
               }`}
             >
               {rate}x

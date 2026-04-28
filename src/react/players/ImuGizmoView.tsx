@@ -69,19 +69,19 @@ export function ImuGizmoView({
   const shake = Math.min(1, Math.abs(mag - 9.81) / shakeThreshold);
 
   return (
-    <div className={`bg-zinc-900 text-zinc-100 text-xs font-mono ${className ?? ''}`}>
-      <div className="px-3 py-1.5 flex gap-4 border-b border-zinc-800 text-[10px]">
-        <span className="text-zinc-400">IMU gizmo @ {time.toFixed(2)}s</span>
+    <div className={`bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 text-xs font-mono ${className ?? ''}`}>
+      <div className="px-3 py-1.5 flex gap-4 border-b border-zinc-200 dark:border-zinc-800 text-[10px]">
+        <span className="text-zinc-600 dark:text-zinc-400">IMU gizmo @ {time.toFixed(2)}s</span>
       </div>
       <div className="flex" style={{ minHeight: 240 }}>
         <div className="flex-1 flex items-center justify-center">
           <AttitudeDisc roll={roll} pitch={pitch} shake={shake} />
         </div>
-        <div className="w-44 shrink-0 border-l border-zinc-800 p-3 space-y-3">
+        <div className="w-44 shrink-0 border-l border-zinc-200 dark:border-zinc-800 p-3 space-y-3">
           <GyroBar label="gX" value={gx} full={gyroFullScale} color="#fb923c" />
           <GyroBar label="gY" value={gy} full={gyroFullScale} color="#a78bfa" />
           <GyroBar label="gZ" value={gz} full={gyroFullScale} color="#22d3ee" />
-          <div className="pt-2 border-t border-zinc-800 space-y-0.5 text-[11px]">
+          <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800 space-y-0.5 text-[11px]">
             <Row label="roll" value={`${(roll * DEG).toFixed(1)}°`} />
             <Row label="pitch" value={`${(pitch * DEG).toFixed(1)}°`} />
             <Row label="|a|" value={`${mag.toFixed(2)} m/s²`} />
@@ -145,9 +145,9 @@ function AttitudeDisc({ roll, pitch, shake }: { roll: number; pitch: number; sha
         </g>
       </g>
       {/* Disc border */}
-      <circle r={R} fill="none" stroke="#52525b" strokeWidth={2} />
+      <circle r={R} fill="none" className="stroke-zinc-400 dark:stroke-zinc-600" strokeWidth={2} />
       {/* Roll arc (top) */}
-      <g stroke="#a1a1aa" strokeWidth={1} fill="none">
+      <g className="stroke-zinc-500 dark:stroke-zinc-400" strokeWidth={1} fill="none">
         <path d={`M ${-R * Math.sin(Math.PI / 6)} ${-R * Math.cos(Math.PI / 6)} A ${R} ${R} 0 0 1 ${R * Math.sin(Math.PI / 6)} ${-R * Math.cos(Math.PI / 6)}`} />
         {/* Roll indicator triangle fixed at top */}
         <polygon points={`0,${-R + 2} -6,${-R + 12} 6,${-R + 12}`} fill="#fbbf24" stroke="none" />
@@ -185,11 +185,11 @@ function GyroBar({
   return (
     <div>
       <div className="flex justify-between mb-0.5 text-[11px]">
-        <span className="text-zinc-400">{label}</span>
+        <span className="text-zinc-600 dark:text-zinc-400">{label}</span>
         <span className="tabular-nums">{value.toFixed(3)}</span>
       </div>
-      <div className="h-2 relative bg-zinc-800 rounded">
-        <div className="absolute top-0 bottom-0 left-1/2 w-px bg-zinc-600" />
+      <div className="h-2 relative bg-zinc-200 dark:bg-zinc-800 rounded">
+        <div className="absolute top-0 bottom-0 left-1/2 w-px bg-zinc-400 dark:bg-zinc-600" />
         <div
           className="absolute top-0 bottom-0 rounded"
           style={{
@@ -206,7 +206,7 @@ function GyroBar({
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between">
-      <span className="text-zinc-500">{label}</span>
+      <span className="text-zinc-500 dark:text-zinc-500">{label}</span>
       <span className="tabular-nums">{value}</span>
     </div>
   );

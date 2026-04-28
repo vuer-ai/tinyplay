@@ -61,11 +61,11 @@ export function SubtitleView({ src, clock, className }: SubtitleViewProps) {
   return (
     <div className={`flex items-center justify-center ${className ?? ''}`}>
       {activeCue ? (
-        <div className="bg-black/80 px-4 py-2 rounded-lg">
-          <p className="text-white text-center text-lg">{activeCue.text}</p>
+        <div className="bg-white/85 dark:bg-black/80 border border-zinc-200 dark:border-transparent px-4 py-2 rounded-lg">
+          <p className="text-zinc-900 dark:text-white text-center text-lg">{activeCue.text}</p>
         </div>
       ) : (
-        <div className="text-zinc-600 text-sm">No subtitle</div>
+        <div className="text-zinc-500 dark:text-zinc-500 text-sm">No subtitle</div>
       )}
     </div>
   );

@@ -71,20 +71,20 @@ export function BarTrackView({
   const names = channelNames ?? Array.from({ length: n }, (_, i) => `C${i}`);
 
   return (
-    <div className={`p-3 bg-zinc-900 text-zinc-100 text-xs font-mono rounded ${className ?? ''}`}>
-      <div className="mb-2 text-zinc-400">
+    <div className={`p-3 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 text-xs font-mono rounded ${className ?? ''}`}>
+      <div className="mb-2 text-zinc-600 dark:text-zinc-400">
         {title ?? 'Channels'} @ {time.toFixed(2)}s · {n} ch
       </div>
-      {n === 0 && <div className="text-zinc-500">no samples loaded</div>}
+      {n === 0 && <div className="text-zinc-500 dark:text-zinc-500">no samples loaded</div>}
       {sample && names.map((name, i) => {
         const v = sample[i];
         const pct = Math.max(-1, Math.min(1, v / range));
         return (
           <div key={i} className="flex items-center gap-2 mb-0.5">
-            <span className="w-20 text-zinc-400 truncate" title={name}>{name}</span>
+            <span className="w-20 text-zinc-600 dark:text-zinc-400 truncate" title={name}>{name}</span>
             <span className="w-16 text-right tabular-nums">{v.toFixed(3)}</span>
-            <div className="flex-1 h-2 relative bg-zinc-800 rounded">
-              <div className="absolute top-0 bottom-0 left-1/2 w-px bg-zinc-600" />
+            <div className="flex-1 h-2 relative bg-zinc-200 dark:bg-zinc-800 rounded">
+              <div className="absolute top-0 bottom-0 left-1/2 w-px bg-zinc-400 dark:bg-zinc-600" />
               <div
                 className={`absolute top-0 bottom-0 rounded ${accentColor}`}
                 style={{

@@ -89,15 +89,22 @@ export function JointAngleView({
   const geo = computeGeometry(sample, dof);
 
   return (
-    <div className={`bg-zinc-900 text-zinc-100 text-xs font-mono ${className ?? ''}`}>
-      <div className="px-3 py-1.5 flex gap-4 border-b border-zinc-800 text-[10px]">
-        <span className="text-zinc-400">Arm · {dof} DoF @ {time.toFixed(2)}s</span>
+    <div className={`bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 text-xs font-mono ${className ?? ''}`}>
+      <div className="px-3 py-1.5 flex gap-4 border-b border-zinc-200 dark:border-zinc-800 text-[10px]">
+        <span className="text-zinc-600 dark:text-zinc-400">Arm · {dof} DoF @ {time.toFixed(2)}s</span>
       </div>
       <div className="flex">
         <div className="flex-1 min-w-0" style={{ minHeight: 260 }}>
           <svg viewBox="0 0 320 280" className="w-full h-full" role="img" aria-label="Robot arm">
             {/* Floor + pedestal */}
-            <line x1={20} y1={250} x2={300} y2={250} stroke="#3f3f46" strokeWidth={1} />
+            <line
+              x1={20}
+              y1={250}
+              x2={300}
+              y2={250}
+              className="stroke-zinc-300 dark:stroke-zinc-700"
+              strokeWidth={1}
+            />
             <Pedestal yaw={geo.baseYaw} />
             {/* Links */}
             {geo.points.slice(1).map((p, i) => (
@@ -114,7 +121,14 @@ export function JointAngleView({
             ))}
             {/* Joint pivots */}
             {geo.points.map((p, i) => (
-              <circle key={`pivot-${i}`} cx={p.x} cy={p.y} r={i === 0 ? 4 : 5} fill="#18181b" stroke="#a1a1aa" strokeWidth={1.5} />
+              <circle
+                key={`pivot-${i}`}
+                cx={p.x}
+                cy={p.y}
+                r={i === 0 ? 4 : 5}
+                className="fill-white dark:fill-zinc-900 stroke-zinc-500 dark:stroke-zinc-400"
+                strokeWidth={1.5}
+              />
             ))}
             {/* Gripper */}
             {geo.end && (
@@ -133,7 +147,7 @@ export function JointAngleView({
                   key={`lbl-${i}`}
                   x={p.x + 8}
                   y={p.y - 8}
-                  fill="#d4d4d8"
+                  className="fill-zinc-700 dark:fill-zinc-300"
                   fontSize={9}
                   fontFamily="ui-monospace, monospace"
                 >
@@ -143,14 +157,14 @@ export function JointAngleView({
             })}
           </svg>
         </div>
-        <div className="w-44 shrink-0 p-3 border-l border-zinc-800 space-y-0.5">
+        <div className="w-44 shrink-0 p-3 border-l border-zinc-200 dark:border-zinc-800 space-y-0.5">
           {sample && names.map((name, i) => (
             <div key={i} className="flex justify-between gap-2">
-              <span className="text-zinc-400 truncate" title={name}>{name}</span>
-              <span className="tabular-nums text-zinc-200">{sample[i].toFixed(3)}</span>
+              <span className="text-zinc-600 dark:text-zinc-400 truncate" title={name}>{name}</span>
+              <span className="tabular-nums text-zinc-800 dark:text-zinc-200">{sample[i].toFixed(3)}</span>
             </div>
           ))}
-          {!sample && <div className="text-zinc-500">waiting for samples…</div>}
+          {!sample && <div className="text-zinc-500 dark:text-zinc-500">waiting for samples…</div>}
         </div>
       </div>
     </div>
@@ -230,8 +244,15 @@ function Pedestal({ yaw }: { yaw: number }) {
   const rx = 22 * Math.abs(Math.cos(yaw));
   return (
     <g>
-      <ellipse cx={cx} cy={cy + 10} rx={26} ry={4} fill="#27272a" />
-      <ellipse cx={cx} cy={cy} rx={Math.max(4, rx)} ry={8} fill="#3f3f46" stroke="#71717a" strokeWidth={1} />
+      <ellipse cx={cx} cy={cy + 10} rx={26} ry={4} className="fill-zinc-200 dark:fill-zinc-800" />
+      <ellipse
+        cx={cx}
+        cy={cy}
+        rx={Math.max(4, rx)}
+        ry={8}
+        className="fill-zinc-300 dark:fill-zinc-700 stroke-zinc-500 dark:stroke-zinc-500"
+        strokeWidth={1}
+      />
       <line
         x1={cx}
         y1={cy}
@@ -276,20 +297,19 @@ function EndEffector({
     ty: y - ny * half + dy * tipLen,
   };
   return (
-    <g>
+    <g className="stroke-zinc-700 dark:stroke-zinc-200">
       {/* palm */}
       <line
         x1={f1.bx}
         y1={f1.by}
         x2={f2.bx}
         y2={f2.by}
-        stroke="#e4e4e7"
         strokeWidth={3}
         strokeLinecap="round"
       />
       {/* fingers */}
-      <line x1={f1.bx} y1={f1.by} x2={f1.tx} y2={f1.ty} stroke="#e4e4e7" strokeWidth={3} strokeLinecap="round" />
-      <line x1={f2.bx} y1={f2.by} x2={f2.tx} y2={f2.ty} stroke="#e4e4e7" strokeWidth={3} strokeLinecap="round" />
+      <line x1={f1.bx} y1={f1.by} x2={f1.tx} y2={f1.ty} strokeWidth={3} strokeLinecap="round" />
+      <line x1={f2.bx} y1={f2.by} x2={f2.tx} y2={f2.ty} strokeWidth={3} strokeLinecap="round" />
     </g>
   );
 }

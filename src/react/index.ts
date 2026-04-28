@@ -9,6 +9,7 @@ export type { MergedTrackState, MergedTrackOptions } from './hooks/use-merged-tr
 export { useTrackSample } from './hooks/use-track-sample';
 export { useJointAnglesForUrdf } from './hooks/use-joint-angles-for-urdf';
 export type { UseJointAnglesForUrdfOptions } from './hooks/use-joint-angles-for-urdf';
+export { useDarkMode } from './hooks/use-dark-mode';
 export { ClockProvider, useClockContext } from './clock-context';
 export type { ClockProviderProps } from './clock-context';
 export { TimelineController } from './TimelineController';
